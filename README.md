@@ -20,9 +20,9 @@ docker build -t team1-hello-world .
 docker run -p 8888:8888 -p 2500:2500 team1-hello-world
 ```
 
-### Step 5: Visit Website
+### Step 5: Visit Website With Token
 ```bash
 http://127.0.0.1:2500
 ```
 
-### Step 6: Click on link to notebook in terminal
+### Step 6: Click on link to notebook in terminal and run.
