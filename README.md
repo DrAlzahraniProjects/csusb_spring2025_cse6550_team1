@@ -1,3 +1,7 @@
+### Ensure that Git and Docker are installed
+- Git : [Download](https://git-scm.com/downloads)
+- Docker : [Download](https://www.docker.com/products/docker-desktop/)
+
 ### Step 1: Clone the Repository
 Clone the GitHub repository to your local machine:  
 ```bash
@@ -20,7 +24,7 @@ docker build -t team1-hello-world .
 docker run -p 8888:8888 -p 2500:2500 team1-hello-world
 ```
 
-### Step 5: Visit Website With Token
+### Step 5: Visit Website With Token or copy and paste the returned token link in the terminal.
 ```bash
 http://127.0.0.1:8888
 ```
