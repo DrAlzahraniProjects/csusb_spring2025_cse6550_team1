@@ -5,12 +5,12 @@ from huggingface_hub import InferenceClient
 
 
 def response_generator(prompt):
-    client = InferenceClient(api_key="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")
+    client = InferenceClient(provider="sambanova", api_key="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")
     
     messages = [{"role": "user", "content": prompt}]
     
     stream = client.chat.completions.create(
-        model="microsoft/Phi-3.5-mini-instruct",  # Replace with your desired model
+        model="meta-llama/Llama-3.1-8B-Instruct",  # Replace with your desired model
         messages=messages,
         max_tokens=500,
         stream=True
