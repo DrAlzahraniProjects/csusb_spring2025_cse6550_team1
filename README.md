@@ -1,41 +1,46 @@
-### Ensure that Git and Docker are installed
+# Team1 CSE 6550 Project
+
+## Ensure that Git and Docker are installed
 - Git : [Download](https://git-scm.com/downloads)
 - Docker : [Download](https://www.docker.com/products/docker-desktop/)
 
-### Step 1: Clone the Repository
+## Step 1: Clone the Repository
 Clone the GitHub repository to your local machine:  
 ```bash
 git clone https://github.com/DrAlzahraniProjects/csusb_spring2025_cse6550_team1
 ```
 
-### Step 2: Navigate to the Repository
+## Step 2: Navigate to the Repository
 Change to the cloned repository directory:  
 ```bash
 cd csusb_spring2025_cse6550_team1
 ```
 
-### Step 3: Build Docker File
+## Step 3: Build Docker File
 ```bash
 docker build -t team1-demo-chatbot .
 ```
 
-### Step 4: Run Docker File
+## Step 4: Run Docker File
 ```bash
 docker run -p 8888:8888 -p 2500:2500 team1-demo-chatbot
 ```
 
-### Step 5: Visit Website
+## Step 5: Visit Website
 ```bash
 http://127.0.0.1:8888
 ```
-### Step 6: Enter Token
+## Step 6: Enter Token
 ```bash
 TEAM1
 ```
 
-### Step 6: Open Notebook and Run All Cells
+## Step 6: Open Notebook and Run All Cells
+ - Open the notebook titled `team1-demo-chatbot.ipynb`
+ - Run all cells in the notebook
 
-### Step 7: Visit Website
+
+## Step 7: Visit Website
 ```bash
 http://127.0.0.1:2500
 ```
