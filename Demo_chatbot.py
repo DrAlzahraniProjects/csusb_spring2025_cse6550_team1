@@ -10,7 +10,7 @@ def response_generator(prompt):
     messages = [{"role": "user", "content": prompt}]
     
     stream = client.chat.completions.create(
-        model="meta-llama/Llama-3.1-8B-Instruct",  # Replace with your desired model
+        model="meta-llama/Llama-3.1-8B-Instruct",  # Using Llama Model in Chatbot
         messages=messages,
         max_tokens=500,
         stream=True
