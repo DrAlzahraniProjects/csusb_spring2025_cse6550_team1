@@ -13,12 +13,12 @@ def get_api_key():
         st.success("API Key set successfully!")
 
 def response_generator(prompt):
-    client = InferenceClient(provider="sambanova", api_key="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")
+    client = InferenceClient(provider="sambanova", api_key=APIK)
     
     messages = [{"role": "user", "content": prompt}]
     
     stream = client.chat.completions.create(
-        model="meta-llama/Llama-3.1-8B-Instruct",  # Replace with your desired model
+        model="meta-llama/Llama-3.1-8B-Instruct",  # Using Llama Model in Chatbot
         messages=messages,
         max_tokens=500,
         stream=True
@@ -29,7 +29,12 @@ def response_generator(prompt):
 
 
 # Streamlit app setup
+<<<<<<< HEAD
 st.title("Chatbot Assistant") 
+=======
+st.title(":blue[CSUSB] Chatbot Assistant")
+st.header("Spring 2025 Team 1", divider="blue")
+>>>>>>> c07f99d9ac24b841ad1d40520772173ba361d000
 
 # Initialize chat history
 if "messages" not in st.session_state:
