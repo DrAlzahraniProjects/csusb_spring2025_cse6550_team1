@@ -2,7 +2,15 @@ import streamlit as st
 # import random,time
 from huggingface_hub import InferenceClient
 
+global APIK  # Declare the global variable
+APIK = None
 
+def get_api_key():
+    global APIK
+    st.title("API Key Input")
+    APIK = st.text_input("Enter your API Key:", type="password", label_visibility="hidden")
+    if APIK:
+        st.success("API Key set successfully!")
 
 def response_generator(prompt):
     client = InferenceClient(provider="sambanova", api_key="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")
@@ -21,7 +29,7 @@ def response_generator(prompt):
 
 
 # Streamlit app setup
-st.title("Chatbot Assistant")
+st.title("Chatbot Assistant") 
 
 # Initialize chat history
 if "messages" not in st.session_state:
