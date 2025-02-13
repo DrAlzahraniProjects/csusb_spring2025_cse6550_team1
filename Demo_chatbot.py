@@ -29,12 +29,8 @@ def response_generator(prompt):
 
 
 # Streamlit app setup
-<<<<<<< HEAD
-st.title("Chatbot Assistant") 
-=======
 st.title(":blue[CSUSB] Chatbot Assistant")
 st.header("Spring 2025 Team 1", divider="blue")
->>>>>>> c07f99d9ac24b841ad1d40520772173ba361d000
 
 # Initialize chat history
 if "messages" not in st.session_state:
