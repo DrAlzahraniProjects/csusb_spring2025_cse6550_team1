@@ -2,9 +2,10 @@ import streamlit as st
 # import random,time
 from huggingface_hub import InferenceClient
 
-global APIK  # Declare the global variable
+global APIK  # Declare the global variable and set it
 APIK = None
 
+'''
 def get_api_key():
     global APIK
     st.title("API Key Input")
@@ -12,9 +13,10 @@ def get_api_key():
     if APIK:
         st.success("API Key set successfully!")
 
+'''
+        
 def response_generator(prompt):
-    client = InferenceClient(provider="sambanova", api_key=APIK)
-    
+    client = InferenceClient(provider="sambanova", api_key="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")  #api_key= APIK
     messages = [{"role": "user", "content": prompt}]
     
     stream = client.chat.completions.create(
