@@ -10,7 +10,7 @@ if not apik:
     st.error("Error: Please set your GROQ_API_Key variable.")
     st.stop()
 
-chat = init_chat_model("llama3.1-8b-instant", model_provider="groq")
+chat = init_chat_model("llama-3.1-8b-instant", model_provider="groq")
 messages = [SystemMessage(content="You are a AI assistant that will help.")]
 
 # Streamlit app setup
