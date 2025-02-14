@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from langchain.chat_models import init_chat_models
+from langchain.chat_models import init_chat_model
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
 
 

@@ -2,3 +2,8 @@ jupyter
 langchain.core
 langchain[groq]
 streamlit
+langchain_community
+streamlit
+jupyter
+llama-index
+openai
