@@ -34,3 +34,8 @@ You will be prompted for an API please enter the key provided in Canvas
 [http://localhost:2511/team1s25/jupyter](http://localhost:2511/team1s25/jupyter)
 
 ### Step 6: Open Notebook and Run All Cells
+
+### Step 7: Visit Website
+```bash
+http://127.0.0.1:2500
+```
