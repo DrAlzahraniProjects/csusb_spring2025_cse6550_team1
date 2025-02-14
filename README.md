@@ -27,15 +27,14 @@ You will be prompted for an API please enter the key provided in Canvas
 ./docker-launch.sh
 ```
 
-### Step 5: Visit Website For Streamlit
+### Step 5: Visit Website For Streamlit Locally
 [http://localhost:2501/team1s25](http://localhost:2501/team1s25)
+#### Or online at: 
+[https://sec.cse.csusb.edu/team1s25](https://sec.cse.csusb.edu/team1s25)
 
-### Step 6: Visit Website For Notebook
+### Step 6: Visit Website For Notebook Locally
 [http://localhost:2511/team1s25/jupyter](http://localhost:2511/team1s25/jupyter)
+#### Or online at: 
+[https://sec.cse.csusb.edu/team1s25/jupyter](https://sec.cse.csusb.edu/team1s25/jupyter)
 
 ### Step 6: Open Notebook and Run All Cells
-
-### Step 7: Visit Website
-```bash
-http://127.0.0.1:2500
-```
