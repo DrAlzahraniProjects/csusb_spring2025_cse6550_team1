@@ -16,31 +16,21 @@ Change to the cloned repository directory:
 cd csusb_spring2025_cse6550_team1
 ```
 
-## Step 3: Build Docker File
+### Step 3: Set Build Script
 ```bash
-docker build -t team1-demo-chatbot .
+chmod +x docker-launch.sh
 ```
 
-## Step 4: Run Docker File
+### Step 4: Run Build Script
+You will be prompted for an API please enter the key provided in Canvas
 ```bash
-docker run -p 8888:8888 -p 2500:2500 team1-demo-chatbot
+./docker-launch.sh
 ```
 
-## Step 5: Visit Website
-```bash
-http://127.0.0.1:8888
-```
-## Step 6: Enter Token
-```bash
-TEAM1
-```
+### Step 5: Visit Website For Streamlit
+[http://localhost:2501/team1s25](http://localhost:2501/team1s25)
 
-## Step 6: Open Notebook and Run All Cells
- - Open the notebook titled `team1-demo-chatbot.ipynb`
- - Run all cells in the notebook
+### Step 6: Visit Website For Notebook
+[http://localhost:2511/team1s25/jupyter](http://localhost:2511/team1s25/jupyter)
 
-
-## Step 7: Visit Website
-```bash
-http://127.0.0.1:2500
-```
+### Step 6: Open Notebook and Run All Cells

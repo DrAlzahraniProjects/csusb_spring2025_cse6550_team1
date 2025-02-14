@@ -2,11 +2,21 @@ import streamlit as st
 
 from huggingface_hub import InferenceClient
 
+global APIK  # Declare the global variable and set it
+APIK = None
 
+'''
+def get_api_key():
+    global APIK
+    st.title("API Key Input")
+    APIK = st.text_input("Enter your API Key:", type="password", label_visibility="hidden")
+    if APIK:
+        st.success("API Key set successfully!")
 
+'''
+        
 def response_generator(prompt):
-    client = InferenceClient(provider="sambanova", api_key="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")
-    
+    client = InferenceClient(provider="sambanova", api_key="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")  #api_key= APIK
     messages = [{"role": "user", "content": prompt}]
     
     stream = client.chat.completions.create(
