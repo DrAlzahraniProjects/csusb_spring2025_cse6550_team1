@@ -1,1 +1,4 @@
-flask
+jupyter
+langchain.core
+langchain[groq]
+streamlit

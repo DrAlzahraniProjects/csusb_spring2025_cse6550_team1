@@ -4,12 +4,7 @@ FROM python:3.10-slim
 WORKDIR /app
 
 # Install dependencies
-RUN pip install --upgrade pip && \
-pip install \
-jupyter \
-ipykernel \
-streamlit \
-huggingface_hub
+RUN pip install -r requirments.txt
 
 # Copy the Jupyter notebook into the container
 COPY team1-demo-chatbot.ipynb /app/
