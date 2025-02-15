@@ -3,6 +3,7 @@
 ## Ensure that Git and Docker are installed
 - Git : [Download](https://git-scm.com/downloads)
 - Docker : [Download](https://www.docker.com/products/docker-desktop/)
+- WSL : [Download](https://learn.microsoft.com/en-us/windows/wsl/install)
 
 ## Step 1: Clone the Repository
 Clone the GitHub repository to your local machine:  
