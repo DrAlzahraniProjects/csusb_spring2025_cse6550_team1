@@ -98,4 +98,4 @@ for metric, value in metrics.items():
 # Reset Button
 if st.button("Reset Confusion Matrix"):
     st.session_state.conf_matrix = np.array([[0, 0], [0, 0]])  # Reset to zeros
-    st.experimental_rerun()
+    st.rerun()
