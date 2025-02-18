@@ -62,7 +62,7 @@ if col1.button("Correct ✅"):
     st.session_state.conf_matrix[0, 0] += 1  # True Positive (TP)
 
 if col2.button("Incorrect ❌"):
-    st.session_state.conf_matrix[0, 1] += 1  # False Negative (FN)
+    st.session_state.conf_matrix[1, 0] += 1  # False Negative (FN)
 
 # Display Confusion Matrix
 st.sidebar.write("### Confusion Matrix")
