@@ -38,4 +38,3 @@ You will be prompted for an API please enter the key provided in Canvas
 #### Or online at: 
 [https://sec.cse.csusb.edu/team1s25/jupyter](https://sec.cse.csusb.edu/team1s25/jupyter)
 
-### Step 6: Open Notebook and Run All Cells
