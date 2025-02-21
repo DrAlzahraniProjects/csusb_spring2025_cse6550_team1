@@ -38,8 +38,8 @@ You will be prompted for an API please enter the key provided in Canvas
 #### Or online at: 
 [https://sec.cse.csusb.edu/team1s25/jupyter](https://sec.cse.csusb.edu/team1s25/jupyter)
 
-### Step 7: If you need to stop the container from running and remove the container and image at the same time:
-Enable execute permissions for the Docker cleanup script::
+### Step 7: If you need to stop the container from running and remove the container and image at the same time
+Enable execute permissions for the Docker cleanup script
 ```
 chmod +x docker-clean.sh
 ```
