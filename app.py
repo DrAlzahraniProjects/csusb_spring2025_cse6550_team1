@@ -12,7 +12,7 @@ if not apik:
     st.stop()
 
 # Initialize chat model
-chat = init_chat_model("llama-3.1-8b-instant", model_provider="groq")
+chat = init_chat_model("llama3-8b-8192", model_provider="groq")
 messages = [SystemMessage(content="You are an AI assistant that will help.")]
 
 # Streamlit UI setup
