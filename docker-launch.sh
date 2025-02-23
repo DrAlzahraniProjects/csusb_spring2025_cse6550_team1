@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Sets Container Name and Ports
-CONT_NAME="spring2025team1-app"
+CONT_NAME="team1s25-app"
 PORT_NUM=2501
 J_PORTNUM=2511
 
