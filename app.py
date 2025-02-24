@@ -9,8 +9,11 @@ from langchain.chat_models import init_chat_model
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
 
 # Initialize API key
-apik = os.environ["GROQ_API_Key"] = "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"
-    
+apik = os.getenv("GROQ_API_KEY")
+if not apik:
+    st.error("Error: Please set your GROQ_API_Key variable.")
+    st.stop()
+        
 # Initialize chat model
 chat = init_chat_model("llama3-8b-8192", model_provider="groq")
 messages = [SystemMessage(content="You are an AI assistant that will help.")] 
