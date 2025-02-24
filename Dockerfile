@@ -23,7 +23,7 @@ WORKDIR /app
 COPY requirements.txt /app/
 
 # Install Python dependencies from requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
 # Copy your Python code into the Docker container
 COPY team1-demo-chatbot.ipynb /app
