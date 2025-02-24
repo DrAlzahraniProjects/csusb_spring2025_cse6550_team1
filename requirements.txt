@@ -7,3 +7,4 @@ streamlit
 jupyter
 llama-index
 openai
+PyPDF2
