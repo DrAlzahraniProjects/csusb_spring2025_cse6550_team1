@@ -19,6 +19,8 @@ RUN apt-get update && \
 # Set up the work directory
 WORKDIR /app
 
+RUN pip install PyPDF2
+
 # Copy your requirements.txt into the Docker container
 COPY requirements.txt /app/
 
