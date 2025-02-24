@@ -2,6 +2,9 @@ import streamlit as st
 import os
 import numpy as np
 import pandas as pd
+import PyPDF2
+import speech_recognition as sr
+import pyttsx3
 from langchain.chat_models import init_chat_model
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
 
@@ -15,61 +18,75 @@ if not apik:
 chat = init_chat_model("llama3-8b-8192", model_provider="groq")
 messages = [SystemMessage(content="You are an AI assistant that will help.")]
 
+# Text-to-Speech Engine Setup
+tts_engine = pyttsx3.init()
+
+def speak(text):
+    tts_engine.say(text)
+    tts_engine.runAndWait()
+
 # Streamlit UI setup
 st.markdown("<h1 style='text-align: center;'>CSUSB Podcast Chatbot</h1>", unsafe_allow_html=True)
 
-# Sidebar - Performance Metrics
-st.sidebar.write("### Performance Metrics")
+# UI Layout Adjustments
+chat_container = st.container()
+prompt_container = st.container()
 
-# Initialize Confusion Matrix in Session State
+# Upload PDF
+uploaded_file = st.file_uploader("Upload a PDF for Discussion", type=["pdf"])
+
+if uploaded_file is not None:
+    pdf_reader = PyPDF2.PdfReader(uploaded_file)
+    text = "\n".join([page.extract_text() for page in pdf_reader.pages if page.extract_text()])
+    st.session_state.pdf_text = text
+    st.success("PDF uploaded successfully! Conversation will be based on this document.")
+
+# Predefined Questions
+questions = [
+    "What CSUSB class assists with creating a podcast?",
+    "Who is the current president of CSUSB?",
+    "What do I need to start a podcast?",
+    "What is the deadline to apply to CSUSB for Fall 2025?",
+    "What is the best mic to start a podcast?",
+    "When do I need to submit my paper for my CSE 6550 class?",
+    "What is the best way to format a podcast?",
+    "When will a CSUSB podcast workshop be held?",
+    "Where can I upload my podcast for listening?",
+    "When is the next CSUSB Podcast class open?"
+]
+
+# Confusion Matrix Initialization
 if "conf_matrix" not in st.session_state:
-    st.session_state.conf_matrix = np.array([[0, 0], [0, 0]])  # Start with zeros
+    st.session_state.conf_matrix = np.array([[0, 0], [0, 0]])
 
-# Chatbot Message Section
-user_input = st.text_input("Ask the Chatbot a Question", key="chat_input")
-
-if st.button("Submit"):
-    if user_input:
-        messages.append(HumanMessage(content=user_input))
-        response = chat.invoke(messages)
-        ai_message = AIMessage(content=response.content)
-        messages.append(ai_message)
-
-        # Display user input
-        st.markdown(
-            f"<div style='background-color:#4a4a4a; color:white; padding:10px; border-radius:5px; width:fit-content; margin:10px 0;'>"
-            f"{user_input}</div>",
-            unsafe_allow_html=True,
-        )
-
-        # Display chatbot response
-        st.markdown(
-            f"<div style='background-color:#333; color:white; padding:10px; border-radius:5px; width:fit-content;'>"
-            f"CSUSB Chatbot response: {response.content}</div>",
-            unsafe_allow_html=True,
-        )
-
-        # Store latest chatbot response in session state
-        st.session_state.latest_response = response.content
-
+# Generate AI Conversation
+if st.button("Start AI Podcast Discussion"):
+    if "pdf_text" in st.session_state:
+        for i, question in enumerate(questions):
+            messages.append(HumanMessage(content=question))
+            response = chat.invoke(messages)
+            ai_response = response.content if i % 2 == 0 else "I do not know!"
+            ai_message = AIMessage(content=ai_response)
+            messages.append(ai_message)
+            
+            with chat_container:
+                st.write(f"**User:** {question}")
+                st.write(f"**Chatbot:** {ai_response}")
+                speak(ai_response)
+            
+            if ai_response != "I do not know!":
+                st.session_state.conf_matrix[0, 0] += 1  # True Positive (TP)
+            else:
+                st.session_state.conf_matrix[1, 0] += 1  # False Negative (FN)
     else:
-        st.warning("Please enter a question before submitting.")
-
-# User Feedback - Confusion Matrix Update
-st.write("### Rate Chatbot's Response")
-col1, col2 = st.columns(2)
-if col1.button("Correct ✅"):
-    st.session_state.conf_matrix[0, 0] += 1  # True Positive (TP)
-
-if col2.button("Incorrect ❌"):
-    st.session_state.conf_matrix[1, 0] += 1  # False Negative (FN)
+        st.warning("Please upload a PDF first.")
 
 # Display Confusion Matrix
 st.sidebar.write("### Confusion Matrix")
 conf_df = pd.DataFrame(
     st.session_state.conf_matrix,
     index=["Actual +", "Actual -"],
-    columns=["Predicted +", "Predicted -"],
+    columns=["Predicted +", "Predicted -"]
 )
 st.sidebar.table(conf_df)
 
@@ -95,7 +112,20 @@ metrics = {
 for metric, value in metrics.items():
     st.sidebar.write(f"**{metric}:** {value:.2f}")
 
-# Reset Button
-if st.button("Reset Confusion Matrix"):
-    st.session_state.conf_matrix = np.array([[0, 0], [0, 0]])  # Reset to zeros
-    st.rerun()
+# Prompt UI for additional input
+with prompt_container:
+    user_input = st.text_input("Ask the Chatbot a Question", key="chat_input")
+    if st.button("Submit"):
+        if user_input:
+            messages.append(HumanMessage(content=user_input))
+            response = chat.invoke(messages)
+            ai_response = response.content if "?" in user_input else "I do not know!"
+            ai_message = AIMessage(content=ai_response)
+            messages.append(ai_message)
+            
+            with chat_container:
+                st.write(f"**User:** {user_input}")
+                st.write(f"**Chatbot:** {ai_response}")
+                speak(ai_response)
+        else:
+            st.warning("Please enter a question before submitting.")
