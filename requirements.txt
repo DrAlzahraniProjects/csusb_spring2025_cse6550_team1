@@ -8,3 +8,5 @@ jupyter
 llama-index
 openai
 PyPDF2
+SpeechRecognition
+python-docx
