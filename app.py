@@ -235,7 +235,7 @@ def start_ai_podcast():
 # Header Section
 col1, col2 = st.columns([1, 3])
 with col1:
-    st.image(r"logo\csusb_logo.png", width=100)
+    st.image(r"logo/csusb_logo.png", width=100)
 with col2:
     st.markdown("<h1 style='text-align: center;'>CSUSB Study Podcast Assistant</h1>", unsafe_allow_html=True)
 
