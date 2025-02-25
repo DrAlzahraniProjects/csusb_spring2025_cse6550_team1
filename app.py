@@ -118,81 +118,7 @@ def start_ai_podcast():
         if ai_response != "I do not know!":
             st.session_state.conf_matrix[0, 0] += 1  # True Positive
         else:
-            st.session_state.conf_matrix[1, 0] += 1  # False Negative
-
-    # Calculate Accuracy, Precision, Recall, Specificity, and F1-Score
-    TP = st.session_state.conf_matrix[0, 0]  # True Positive
-    TN = st.session_state.conf_matrix[1, 1]  # True Negative
-    FP = st.session_state.conf_matrix[0, 1]  # False Positive
-    FN = st.session_state.conf_matrix[1, 0]  # False Negative
-
-    # Accuracy
-    accuracy = (TP + TN) / (TP + TN + FP + FN) if (TP + TN + FP + FN) > 0 else 0
-
-    # Precision
-    precision = TP / (TP + FP) if (TP + FP) > 0 else 0
-
-    # Recall
-    recall = TP / (TP + FN) if (TP + FN) > 0 else 0
-
-    # Specificity
-    specificity = TN / (TN + FP) if (TN + FP) > 0 else 0
-
-    # F1-Score
-    f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
-
-    # Display metrics in the sidebar
-    st.sidebar.write("### Metrics")
-    st.sidebar.write(f"**Accuracy:** {accuracy:.2f}")
-    st.sidebar.write(f"**Precision:** {precision:.2f}")
-    st.sidebar.write(f"**Recall:** {recall:.2f}")
-    st.sidebar.write(f"**Specificity:** {specificity:.2f}")
-    st.sidebar.write(f"**F1-Score:** {f1_score:.2f}")
-
-    # Display Confusion Matrix **Once**
-    st.sidebar.write("### Confusion Matrix")
-    conf_df = pd.DataFrame(
-        st.session_state.conf_matrix,
-        index=["Actual +", "Actual -"],
-        columns=["Predicted +", "Predicted -"]
-    )
-    st.sidebar.table(conf_df)
-    questions = [
-        "What CSUSB class assists with creating a podcast?",
-        "Who is the current president of CSUSB?",
-        "What do I need to start a podcast?",
-        "What is the deadline to apply to CSUSB for Fall 2025?",
-        "What is the best mic to start a podcast?",
-        "When do I need to submit my paper for my CSE 6550 class?",
-        "What is the best way to format a podcast?",
-        "When will a CSUSB podcast workshop be held?",
-        "Where can I upload my podcast for listening?",
-        "When is the next CSUSB Podcast class open?"
-    ]
-    
-    for i, question in enumerate(questions):
-        # AI Response generation
-        messages.append(HumanMessage(content=question))
-        response = chat.invoke(messages)
-        ai_response = response.content if i % 2 == 0 else "I do not know!"
-
-        # Generate a concise summary
-        ai_response_summary = " ".join(ai_response.splitlines()[:5])  # First 5 lines
-
-        ai_message = AIMessage(content=ai_response_summary)
-        messages.append(ai_message)
-
-        # Display conversation in a structured format
-        with st.container():
-            st.write(f"**Question:** {question}")
-            st.write(f"**Answer:** {ai_response_summary}")
-            st.markdown("---")  # UI separator for clarity
-
-        # Update confusion matrix based on correctness
-        if ai_response != "I do not know!":
-            st.session_state.conf_matrix[0, 0] += 1  # True Positive
-        else:
-            st.session_state.conf_matrix[1, 0] += 1  # False Negative
+            st.session_state.conf_matrix[1, 1] += 1  # False Negative
 
     # Calculate Accuracy, Precision, Recall, Specificity, and F1-Score
     TP = st.session_state.conf_matrix[0, 0]  # True Positive
@@ -241,6 +167,8 @@ with col2:
 
 # File Upload Section
 uploaded_file = st.file_uploader("Upload a document (PDF, DOCX)", type=["pdf", "docx"])
+extracted_text = ""
+
 if uploaded_file is not None:
     if uploaded_file.type == "application/pdf":
         extracted_text = extract_text_from_pdf(uploaded_file)
@@ -249,47 +177,30 @@ if uploaded_file is not None:
     else:
         extracted_text = "Unsupported file type."
 
-    # Process extracted text with the chat model only when needed
-    if st.button("Process Extracted Text"):
-        if extracted_text:
-            messages.append(HumanMessage(content=extracted_text))
-            response = chat.invoke(messages)
-            ai_response = response.content if response else "I do not know!"
-            ai_response_summary = " ".join(ai_response.splitlines()[:5])
-            messages.append(AIMessage(content=ai_response_summary))
-
-            st.write(f"**Extracted Text:** {extracted_text}")
-            st.write(f"**AI Response:** {ai_response_summary}")
-        else:
-            st.warning("No text extracted to process.")
-
 # Chatbot Input for Document-based or Model-based Communication
-user_input = st.text_input("Ask the Chatbot a Question (Document-based or Model-based)", key="chat_input")
-if st.button("Submit", key="submit_button_1"):
-    # If document text exists and user queries about the document content
-    if uploaded_file is not None and ("document" in user_input.lower() or "uploaded file" in user_input.lower()):
-        # Use extracted text from document
-        prompt = get_document_based_prompt(extracted_text, user_input)
-        response = chat.invoke([SystemMessage(content=prompt)])  # Call model with document-based prompt
-    else:
-        # Use general model
-        prompt = get_model_based_prompt(user_input)
-        response = chat.invoke([SystemMessage(content=prompt)])  # Call model with general knowledge prompt
+user_input = st.text_input("Ask the Chatbot a Question (Document-based or General)", key="chat_input")
 
+if st.button("Submit", key="submit_button"):
+    if uploaded_file and extracted_text.strip():
+        prompt = get_document_based_prompt(extracted_text, user_input)
+    else:
+        prompt = get_model_based_prompt(user_input)
+
+    response = chat.invoke([SystemMessage(content=prompt)])
     ai_response = response.content if response else "I do not know!"
+    
     st.write(f"**User:** {user_input}")
     st.write(f"**AI Response:** {ai_response}")
 
-    # Update confusion matrix based on response
     if "I do not know!" in ai_response:
-        st.session_state.conf_matrix[1, 0] += 1  # False Positive
+        st.session_state.conf_matrix[1, 0] += 1  # False Negative
     else:
         st.session_state.conf_matrix[0, 0] += 1  # True Positive
 
 # Podcast Start Buttons
 col1, col2 = st.columns(2)
 with col1:
-    if st.button("Start AI Podcast (Click)", key="start_podcast_button_1"):
+    if st.button("Start AI Podcast (Click)", key="start_podcast_button"):
         start_ai_podcast()
 
 with col2:
