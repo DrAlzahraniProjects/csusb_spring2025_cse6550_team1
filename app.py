@@ -110,82 +110,8 @@ def start_ai_podcast():
 
         # Display conversation in a structured format
         with st.container():
-            st.write(f"**Question:** {question}")
-            st.write(f"**Answer:** {ai_response_summary}")
-            st.markdown("---")  # UI separator for clarity
-
-        # Update confusion matrix based on correctness
-        if ai_response != "I do not know!":
-            st.session_state.conf_matrix[0, 0] += 1  # True Positive
-        else:
-            st.session_state.conf_matrix[1, 0] += 1  # False Negative
-
-    # Calculate Accuracy, Precision, Recall, Specificity, and F1-Score
-    TP = st.session_state.conf_matrix[0, 0]  # True Positive
-    TN = st.session_state.conf_matrix[1, 1]  # True Negative
-    FP = st.session_state.conf_matrix[0, 1]  # False Positive
-    FN = st.session_state.conf_matrix[1, 0]  # False Negative
-
-    # Accuracy
-    accuracy = (TP + TN) / (TP + TN + FP + FN) if (TP + TN + FP + FN) > 0 else 0
-
-    # Precision
-    precision = TP / (TP + FP) if (TP + FP) > 0 else 0
-
-    # Recall
-    recall = TP / (TP + FN) if (TP + FN) > 0 else 0
-
-    # Specificity
-    specificity = TN / (TN + FP) if (TN + FP) > 0 else 0
-
-    # F1-Score
-    f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
-
-    # Display metrics in the sidebar
-    st.sidebar.write("### Metrics")
-    st.sidebar.write(f"**Accuracy:** {accuracy:.2f}")
-    st.sidebar.write(f"**Precision:** {precision:.2f}")
-    st.sidebar.write(f"**Recall:** {recall:.2f}")
-    st.sidebar.write(f"**Specificity:** {specificity:.2f}")
-    st.sidebar.write(f"**F1-Score:** {f1_score:.2f}")
-
-    # Display Confusion Matrix **Once**
-    st.sidebar.write("### Confusion Matrix")
-    conf_df = pd.DataFrame(
-        st.session_state.conf_matrix,
-        index=["Actual +", "Actual -"],
-        columns=["Predicted +", "Predicted -"]
-    )
-    st.sidebar.table(conf_df)
-    questions = [
-        "What CSUSB class assists with creating a podcast?",
-        "Who is the current president of CSUSB?",
-        "What do I need to start a podcast?",
-        "What is the deadline to apply to CSUSB for Fall 2025?",
-        "What is the best mic to start a podcast?",
-        "When do I need to submit my paper for my CSE 6550 class?",
-        "What is the best way to format a podcast?",
-        "When will a CSUSB podcast workshop be held?",
-        "Where can I upload my podcast for listening?",
-        "When is the next CSUSB Podcast class open?"
-    ]
-    
-    for i, question in enumerate(questions):
-        # AI Response generation
-        messages.append(HumanMessage(content=question))
-        response = chat.invoke(messages)
-        ai_response = response.content if i % 2 == 0 else "I do not know!"
-
-        # Generate a concise summary
-        ai_response_summary = " ".join(ai_response.splitlines()[:5])  # First 5 lines
-
-        ai_message = AIMessage(content=ai_response_summary)
-        messages.append(ai_message)
-
-        # Display conversation in a structured format
-        with st.container():
-            st.write(f"**Question:** {question}")
-            st.write(f"**Answer:** {ai_response_summary}")
+            st.write(f"**Alpha:** {question}")
+            st.write(f"**Beta:** {ai_response_summary}")
             st.markdown("---")  # UI separator for clarity
 
         # Update confusion matrix based on correctness
