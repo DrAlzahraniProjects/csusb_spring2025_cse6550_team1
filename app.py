@@ -98,6 +98,13 @@ def start_ai_podcast():
     ]   
 
     for i, question in enumerate(questions):
+        # Display Alpha's question
+        with st.container():
+            st.write(f"**Alpha:** {question}")
+
+        # Delay before Beta responds
+        time.sleep(10)  # Pause after question before generating response
+
         # AI Response generation
         messages.append(HumanMessage(content=question))
         response = chat.invoke(messages)
@@ -111,7 +118,7 @@ def start_ai_podcast():
 
         # Display conversation in a structured format
         with st.container():
-            st.write(f"**Alpha:** {question}")
+            ##st.write(f"**Alpha:** {question}")
             st.write(f"**Beta:** {ai_response_summary}")
             st.markdown("---")  # UI separator for clarity
 
