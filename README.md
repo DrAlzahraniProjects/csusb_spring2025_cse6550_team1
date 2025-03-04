@@ -37,6 +37,8 @@ You will be prompted for an API please enter the key provided in Canvas
 [http://localhost:2511/team1s25/jupyter](http://localhost:2511/team1s25/jupyter)
 #### Or online at: 
 [https://sec.cse.csusb.edu/team1s25/jupyter](https://sec.cse.csusb.edu/team1s25/jupyter)
+#### Or on Google Colab at:
+[https://colab.research.google.com/drive/1AcIKcovL3VLEsC65BsshNjKJR_WPraxI?usp=sharing)
 
 ### Step 7: If you need to stop the container from running and remove the container and image at the same time
 Enable execute permissions for the Docker cleanup script
