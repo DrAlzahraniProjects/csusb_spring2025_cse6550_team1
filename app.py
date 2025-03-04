@@ -120,6 +120,7 @@ def start_ai_podcast():
             st.session_state.conf_matrix[0, 0] += 1  # True Positive
         else:
             st.session_state.conf_matrix[1, 0] += 1  # False Negative
+        time.sleep(30)
 
     # Calculate Accuracy, Precision, Recall, Specificity, and F1-Score
     TP = st.session_state.conf_matrix[0, 0]  # True Positive
@@ -213,7 +214,7 @@ if st.button("Submit", key="submit_button_1"):
     else:
         st.session_state.conf_matrix[0, 0] += 1  # True Positive
     # Delay before asking the next question
-        time.sleep(10)
+        
 # Podcast Start Buttons
 col1, col2 = st.columns(2)
 with col1:
