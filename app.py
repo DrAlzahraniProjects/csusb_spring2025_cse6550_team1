@@ -11,7 +11,11 @@ import time
 from docx import Document
 
 # Initialize API key
-apik = os.environ["GROQ_API_KEY"] = "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"
+apik = os.getenv("GROQ_API_KEY")
+if not apik:
+    st.error("Error: Please set your GROQ_API_Key variable.")
+    st.stop()
+    
 # Initialize two different Llama3 models
 chat_alpha = init_chat_model("llama3-8b-8192", model_provider="groq")  # Alpha's model
 chat_beta = init_chat_model("llama3-70b-8192", model_provider="groq")  # Beta's model
