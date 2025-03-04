@@ -74,7 +74,7 @@ def start_ai_podcast():
         # Show "Beta is thinking..." message
         thinking_text = st.empty()
         thinking_text.write("**Beta is thinking...**")
-        time.sleep(2)
+        time.sleep(4)
 
         # Beta responds to Alpha's question
         messages.append(HumanMessage(content=question))
@@ -95,7 +95,7 @@ def start_ai_podcast():
         st.write(f"**Beta:** {ai_response_summary}")
         st.markdown("---")
 
-        time.sleep(5)
+        time.sleep(1)
 
     # Display updated confusion matrix
     # Sidebar for confusion matrix
