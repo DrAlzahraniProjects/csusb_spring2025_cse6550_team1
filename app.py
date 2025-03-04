@@ -103,14 +103,14 @@ def start_ai_podcast():
             st.write(f"**Alpha:** {question}")
 
         # Delay before Beta responds
-        time.sleep(5)  # Pause after question before generating response
+        time.sleep(15)  # Pause after question before generating response
 
         # Show "Beta is thinking..." message
         thinking_text = st.empty()  # Creates a placeholder
         thinking_text.write("**Beta is thinking...**")  # Show message
 
         # Keep "Beta is thinking..." visible for 10 seconds
-        time.sleep(5)  # Let the message stay on screen
+        time.sleep(10)  # Let the message stay on screen
 
         # AI Response generation
         messages.append(HumanMessage(content=question))
@@ -136,7 +136,7 @@ def start_ai_podcast():
             st.session_state.conf_matrix[1, 0] += 1  # False Negative
 
         # Delay before asking the next question
-        time.sleep(5)
+        time.sleep(10)
 
     # Calculate Accuracy, Precision, Recall, Specificity, and F1-Score
     TP = st.session_state.conf_matrix[0, 0]  # True Positive
