@@ -116,9 +116,8 @@ def start_ai_podcast():
         ai_message = AIMessage(content=ai_response_summary)
         messages.append(ai_message)
 
-        # Display conversation in a structured format
+        # Display Beta's response
         with st.container():
-            ##st.write(f"**Alpha:** {question}")
             st.write(f"**Beta:** {ai_response_summary}")
             st.markdown("---")  # UI separator for clarity
 
@@ -127,7 +126,9 @@ def start_ai_podcast():
             st.session_state.conf_matrix[0, 0] += 1  # True Positive
         else:
             st.session_state.conf_matrix[1, 0] += 1  # False Negative
-        time.sleep(30)
+
+        # Delay before asking the next question
+        time.sleep(10)
 
     # Calculate Accuracy, Precision, Recall, Specificity, and F1-Score
     TP = st.session_state.conf_matrix[0, 0]  # True Positive
