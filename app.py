@@ -185,6 +185,7 @@ with col2:
 
 # File Upload Section
 uploaded_file = st.file_uploader("Upload a document (PDF, DOCX)", type=["pdf", "docx"])
+extracted_text = ""
 if uploaded_file is not None:
     if uploaded_file.type == "application/pdf":
         extracted_text = extract_text_from_pdf(uploaded_file)
@@ -193,25 +194,11 @@ if uploaded_file is not None:
     else:
         extracted_text = "Unsupported file type."
 
-    # Process extracted text with the chat model only when needed
-    if st.button("Process Extracted Text"):
-        if extracted_text:
-            messages.append(HumanMessage(content=extracted_text))
-            response = chat.invoke(messages)
-            ai_response = response.content if response else "I do not know!"
-            ai_response_summary = " ".join(ai_response.splitlines()[:5])
-            messages.append(AIMessage(content=ai_response_summary))
-
-            st.write(f"**Extracted Text:** {extracted_text}")
-            st.write(f"**AI Response:** {ai_response_summary}")
-        else:
-            st.warning("No text extracted to process.")
-
 # Chatbot Input for Document-based or Model-based Communication
 user_input = st.text_input("Ask the Chatbot a Question (Document-based or Model-based)", key="chat_input")
 if st.button("Submit", key="submit_button_1"):
     # If document text exists and user queries about the document content
-    if uploaded_file is not None and ("document" in user_input.lower() or "uploaded file" in user_input.lower()):
+    if extracted_text and ("document" in user_input.lower() or "uploaded file" in user_input.lower()):
         # Use extracted text from document
         prompt = get_document_based_prompt(extracted_text, user_input)
         response = chat.invoke([SystemMessage(content=prompt)])  # Call model with document-based prompt
