@@ -17,35 +17,45 @@ Change to the cloned repository directory:
 cd csusb_spring2025_cse6550_team1
 ```
 
-### Step 3: Set Build Script
+### Step 3: Initialize a Git Repository
+```bash
+git init
+```
+
+### Step 4: Pull the Latest Changes
+```bash
+git pull
+```
+
+### Step 5: Set Build Script
 ```bash
 chmod +x docker-launch.sh
 ```
 
-### Step 4: Run Build Script
+### Step 6: Run Build Script
 You will be prompted for an API please enter the key provided in Canvas
 ```bash
 ./docker-launch.sh
 ```
 
-### Step 5: Visit Website For Streamlit Locally
+### Step 7: Visit Website For Streamlit Locally
 [http://localhost:2501/team1s25](http://localhost:2501/team1s25)
 #### Or online at: 
 [https://sec.cse.csusb.edu/team1s25](https://sec.cse.csusb.edu/team1s25)
 
-### Step 6: Visit Website For Notebook Locally
+### Step 8: Visit Website For Notebook Locally
 [http://localhost:2511/team1s25/jupyter](http://localhost:2511/team1s25/jupyter)
 #### Or online at: 
 [https://sec.cse.csusb.edu/team1s25/jupyter](https://sec.cse.csusb.edu/team1s25/jupyter)
 #### Or on Google Colab at:
 [https://colab.research.google.com/drive/1AcIKcovL3VLEsC65BsshNjKJR_WPraxI?usp=sharing)
 
-### Step 7: If you need to stop the container from running and remove the container and image at the same time
+### Step 9: If you need to stop the container from running and remove the container and image at the same time
 Enable execute permissions for the Docker cleanup script
 ```
 chmod +x docker-clean.sh
 ```
-### Step 8: Run the script to stop and remove the Docker container and image at the same time:
+### Step 10: Run the script to stop and remove the Docker container and image at the same time:
 ```
 ./docker-clean.sh
 ```
