@@ -110,7 +110,7 @@ def start_ai_podcast():
         thinking_text.write("**Beta is thinking...**")  # Show message
 
         # Keep "Beta is thinking..." visible for 10 seconds
-        time.sleep(2)  # Let the message stay on screen
+        time.sleep(4)  # Let the message stay on screen
 
         # AI Response generation
         messages.append(HumanMessage(content=question))
