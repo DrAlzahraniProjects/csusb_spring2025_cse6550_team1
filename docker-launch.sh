@@ -17,5 +17,4 @@ docker run -d -p $PORT_NUM:$PORT_NUM -p $J_PORTNUM:$J_PORTNUM --name $CONT_NAME 
 
 # Output where the apps are running
 echo "Streamlit is available at: http://localhost:$PORT_NUM/team1s25"
-echo "Jupyter Notebook is available at: http://localhost:$J_PORTNUM/team1s25/jupyter"
-
+echo "Google Colab is available at: https://colab.research.google.com/drive/1AcIKcovL3VLEsC65BsshNjKJR_WPraxI?usp=sharing"
