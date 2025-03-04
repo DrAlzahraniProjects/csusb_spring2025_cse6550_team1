@@ -7,6 +7,7 @@ import numpy as np
 from langchain.chat_models import init_chat_model
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
 import PyPDF2
+import time 
 from docx import Document
 
 # Initialize API key
@@ -211,7 +212,8 @@ if st.button("Submit", key="submit_button_1"):
         st.session_state.conf_matrix[1, 0] += 1  # False Positive
     else:
         st.session_state.conf_matrix[0, 0] += 1  # True Positive
-
+    # Delay before asking the next question
+        time.sleep(10)
 # Podcast Start Buttons
 col1, col2 = st.columns(2)
 with col1:
