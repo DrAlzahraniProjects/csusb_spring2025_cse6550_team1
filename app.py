@@ -103,14 +103,14 @@ def start_ai_podcast():
             st.write(f"**Alpha:** {question}")
 
         # Delay before Beta responds
-        time.sleep(5)  # Pause after question before generating response
+        time.sleep(1)  # Pause after question before generating response
 
         # Show "Beta is thinking..." message
         thinking_text = st.empty()  # Creates a placeholder
         thinking_text.write("**Beta is thinking...**")  # Show message
 
         # Keep "Beta is thinking..." visible for 10 seconds
-        time.sleep(8)  # Let the message stay on screen
+        time.sleep(2)  # Let the message stay on screen
 
         # AI Response generation
         messages.append(HumanMessage(content=question))
