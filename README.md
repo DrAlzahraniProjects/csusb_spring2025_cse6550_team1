@@ -53,7 +53,7 @@ chmod +x docker-launch.sh
 
 For local:
 
-- Once the container starts, Open browser at http://localhost:2501/team1s25
+- Once the container starts, Open  your browser at http://localhost:2501/team1s25
 
 
 ### Step 7: Enable execute permissions for the Docker cleanup script:
@@ -78,11 +78,11 @@ Open link at https://sec.cse.csusb.edu/team1s25
 
 For Jupyter:
 
-Open browser at https://sec.cse.csusb.edu/team14/jupyter
+Open link at https://sec.cse.csusb.edu/team14/jupyter
 
 
 ## Google Colab Notebook  
 
-We have integrated a Google Colab notebook for easy access and execution.
+We are using a Google Colab notebook for easy access and execution.
 
 [Open in Colab] https://colab.research.google.com/drive/1AcIKcovL3VLEsC65BsshNjKJR_WPraxI?usp=sharing
