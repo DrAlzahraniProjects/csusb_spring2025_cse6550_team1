@@ -42,3 +42,47 @@ Run the setup script to build and start the Docker container:
 ```bash
 chmod +x docker-launch.sh
 ```
+
+### Step 5: Run Build Script (enter your Groq API Key when prompted):
+
+```bash
+./docker-launch.sh
+```
+
+### Step 6: Access the Chatbot
+
+For local:
+
+- Once the container starts, Open browser at http://localhost:2501/team1s25
+
+
+### Step 7: Enable execute permissions for the Docker cleanup script:
+
+```bash
+chmod +x docker-clean.sh
+```
+
+### Step 8: Run the script to stop and remove the Docker image and container :
+
+```bash
+./docker-clean.sh
+```
+
+---
+
+### Hosted on CSE department web server
+
+For Streamlit:
+
+Open link at https://sec.cse.csusb.edu/team1s25
+
+For Jupyter:
+
+Open browser at https://sec.cse.csusb.edu/team14/jupyter
+
+
+## Google Colab Notebook  
+
+We have integrated a Google Colab notebook for easy access and execution.
+
+[Open in Colab]([https://colab.research.google.com/drive/1AcIKcovL3VLEsC65BsshNjKJR_WPraxI?usp=sharing)
