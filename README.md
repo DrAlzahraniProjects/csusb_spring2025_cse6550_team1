@@ -1,61 +1,88 @@
-# Team1 CSE 6550 Project
+### CSUSB Podcast Bot
 
-## Ensure that Git and Docker are installed
-- Git : [Download](https://git-scm.com/downloads)
-- Docker : [Download](https://www.docker.com/products/docker-desktop/)
-- WSL : [Download](https://learn.microsoft.com/en-us/windows/wsl/install)
+## Prerequisites
 
-## Step 1: Clone the Repository
-Clone the GitHub repository to your local machine:  
+Before you begin, ensure you have the following:
+
+1. **Git**: [Install Git](https://git-scm.com/) from the official website.
+2. **Docker**: [Install Docker](https://www.docker.com) from the official website.
+3. **Linux/MacOS**: No setup needed.
+4. **Windows**: Install [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) and enable Docker's WSL integration by following [this guide](https://docs.docker.com/desktop/windows/wsl/).
+
+---
+
+### Step 1: Clone the Repository
+
+Clone the GitHub repository to your local machine:
+
 ```bash
 git clone https://github.com/DrAlzahraniProjects/csusb_spring2025_cse6550_team1
 ```
 
-## Step 2: Navigate to the Repository
-Change to the cloned repository directory:  
+### Step 2: Navigate to the Repository
+
+Change to the cloned repository directory:
+
 ```bash
 cd csusb_spring2025_cse6550_team1
 ```
 
-### Step 3: Initialize a Git Repository
+### Step 3: Pull the Latest Version
+
+Update the repository to the latest version:
+
 ```bash
-git init
+git pull origin main
 ```
 
-### Step 4: Pull the Latest Changes
-```bash
-git pull
-```
+### Step 4: Set Build Script
 
-### Step 5: Set Build Script
+Run the setup script to build and start the Docker container:
+
 ```bash
 chmod +x docker-launch.sh
 ```
 
-### Step 6: Run Build Script
-You will be prompted for an API please enter the key provided in Canvas
+### Step 5: Run Build Script (enter your Groq API Key when prompted):
+
 ```bash
 ./docker-launch.sh
 ```
 
-### Step 7: Visit Website For Streamlit Locally
-[http://localhost:2501/team1s25](http://localhost:2501/team1s25)
-#### Or online at: 
-[https://sec.cse.csusb.edu/team1s25](https://sec.cse.csusb.edu/team1s25)
+### Step 6: Access the Chatbot
 
-### Step 8: Visit Website For Notebook Locally
-[http://localhost:2511/team1s25/jupyter](http://localhost:2511/team1s25/jupyter)
-#### Or online at: 
-[https://sec.cse.csusb.edu/team1s25/jupyter](https://sec.cse.csusb.edu/team1s25/jupyter)
-#### Or on Google Colab at:
-[https://colab.research.google.com/drive/1AcIKcovL3VLEsC65BsshNjKJR_WPraxI?usp=sharing)
+For local:
 
-### Step 9: If you need to stop the container from running and remove the container and image at the same time
-Enable execute permissions for the Docker cleanup script
-```
+- Once the container starts, Open  your browser at http://localhost:2501/team1s25
+
+
+### Step 7: Enable execute permissions for the Docker cleanup script:
+
+```bash
 chmod +x docker-clean.sh
 ```
-### Step 10: Run the script to stop and remove the Docker container and image at the same time:
-```
+
+### Step 8: Run the script to stop and remove the Docker image and container :
+
+```bash
 ./docker-clean.sh
 ```
+
+---
+
+### Hosted on CSE department web server
+
+For Streamlit:
+
+Open link at https://sec.cse.csusb.edu/team1s25
+
+For Jupyter:
+
+Open link at https://sec.cse.csusb.edu/team14/jupyter
+
+
+## Google Colab Notebook  
+
+We are using a Google Colab notebook for easy access and execution.
+
+[Open in Colab] https://colab.research.google.com/drive/1AcIKcovL3VLEsC65BsshNjKJR_WPraxI?usp=sharing
