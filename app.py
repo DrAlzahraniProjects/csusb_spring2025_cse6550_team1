@@ -31,7 +31,10 @@ with col2:  # Center content in the middle column
         )
         
 # Initialize API key
-apik = os.environ["GROQ_API_KEY"] = "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"
+apik = os.getenv("GROQ_API_KEY")
+if not apik:
+    st.error("Error: Please set your GROQ_API_Key variable.")
+    st.stop()
     
 # Initialize two different Llama3 models
 chat_alpha = init_chat_model("llama3-8b-8192", model_provider="groq")  # Alpha's model
