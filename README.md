@@ -53,7 +53,7 @@ chmod +x docker-launch.sh
 
 For local:
 
-- Once the container starts, Open  your browser at http://localhost:2501/team1s25
+- Once the container starts, Open your browser at http://localhost:2501/team1s25
 
 
 ### Step 7: Enable execute permissions for the Docker cleanup script:
@@ -75,11 +75,6 @@ chmod +x docker-clean.sh
 For Streamlit:
 
 Open link at https://sec.cse.csusb.edu/team1s25
-
-For Jupyter:
-
-Open link at https://sec.cse.csusb.edu/team14/jupyter
-
 
 ## Google Colab Notebook  
 
