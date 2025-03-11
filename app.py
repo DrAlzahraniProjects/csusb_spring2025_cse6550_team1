@@ -72,7 +72,7 @@ def extract_text_from_pdf(pdf_file):
         return f"Error extracting PDF text: {str(e)}"
     
 
-# Apply CSS to hide the misleading 200MB limit message
+# Apply CSS to hide the misleading 10MB limit message
 st.markdown(
     """
     <style>
