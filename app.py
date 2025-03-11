@@ -70,14 +70,15 @@ def extract_text_from_pdf(pdf_file):
     
 
 # File Upload Section (Only PDF, Max 10MB)
-uploaded_file = st.file_uploader("Upload a PDF document!", type=["pdf"])
-extracted_text = ""
+# File Upload Section with size limit (10MB)
+uploaded_file = st.file_uploader("Upload a document (Max: 10MB, PDF/DOCX)", type=["pdf", "docx"])
 
 if uploaded_file:
     if uploaded_file.size > 10 * 1024 * 1024:  # 10MB limit
-        st.error("File size exceeds 10MB. Please upload a smaller file.")
+        st.error("File size exceeds the 10MB limit. Please upload a smaller file.")
     else:
-        extracted_text = extract_text_from_pdf(uploaded_file)   
+        extracted_text = extract_text_from_pdf(uploaded_file) if uploaded_file.type == "application/pdf" else extract_text_from_docx(uploaded_file)
+
 
 # Initialize confusion matrix
 if 'conf_matrix' not in st.session_state:
