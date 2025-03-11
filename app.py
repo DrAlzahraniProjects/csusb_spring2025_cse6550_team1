@@ -249,4 +249,61 @@ with col2:
 if st.session_state["podcast_started"]:
     st.write("---")  # Separator for clarity
     start_ai_podcast()  # Run the AI podcast function
-            
+
+# Function to test AI rephrasing and answering
+def test_ai_rephrasing():
+    test_questions = [
+        "What CSUSB class assists with creating a podcast?",
+        "Who is the current president of CSUSB?",
+        "What do I need to start a podcast?",
+        "What is the deadline to apply to CSUSB for Fall 2025?",
+        "What is the best mic to start a podcast?",
+        "When do I need to submit my paper for my CSE 6550 class?",
+        "What is the best way to format a podcast?",
+        "When will a CSUSB podcast workshop be held?",
+        "Where can I upload my podcast for listening?",
+        "When is the next CSUSB Podcast class open?"
+    ]
+
+    for i, question in enumerate(test_questions):
+        # Alpha rephrases the question
+        rephrase_prompt = f"Rephrase the following question in your own words: {question}"
+        messages.append(HumanMessage(content=rephrase_prompt))
+        rephrase_response = chat_alpha.invoke(messages)
+        rephrased_question = rephrase_response.content.strip() if rephrase_response else "Could not rephrase the question."
+
+        # Beta answers the rephrased question
+        if i % 2 == 0:
+            ai_response = "I don't know"
+        else:
+            beta_prompt = f"""
+            You are an AI assistant answering questions. Provide an accurate response in the following format:
+
+            → (1-2 line summary of the answer)
+            **Key Points:**
+            - First key point
+            - Second key point
+            - Third key point
+
+            **Question:** {rephrased_question}
+            """
+            response = chat_beta.invoke([SystemMessage(content=beta_prompt)])
+            ai_response = response.content.strip() if response else "I don't know"
+
+        st.write(f"**Original Question:** {question}")
+        st.write(f"**Rephrased Question (Alpha):** {rephrased_question}")
+        st.write(f"**Beta's Answer:**\n\n{ai_response}")
+        st.markdown("---")
+
+        # Update confusion matrix
+        if "I don't know" in ai_response:
+            st.session_state.conf_matrix[1, 0] += 1
+        else:
+            st.session_state.conf_matrix[0, 0] += 1
+
+    # Update Sidebar After Running Test AI
+    update_sidebar()
+
+# Add a new button for testing AI rephrasing
+if st.button("Test AI", key="test_ai_button"):
+    test_ai_rephrasing()
