@@ -70,14 +70,17 @@ def extract_text_from_pdf(pdf_file):
     
 
 # Apply CSS to hide the misleading 200MB limit message
-hide_streamlit_style = """
+st.markdown(
+    """
     <style>
+        /* Hide the 200MB limit text */
         div[data-testid="stFileUploader"] div[aria-live="polite"] {
-            display: none;
+            display: none !important;
         }
     </style>
-"""
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True
+)
 
 # File Upload Section (PDF Only, Max 10MB)
 uploaded_file = st.file_uploader("Upload a PDF document (Max: 10MB)", type=["pdf"])
