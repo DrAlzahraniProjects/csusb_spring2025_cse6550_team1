@@ -31,10 +31,7 @@ with col2:  # Center content in the middle column
         )
         
 # Initialize API key
-apik = os.getenv("GROQ_API_KEY")
-if not apik:
-    st.error("Error: Please set your GROQ_API_Key variable.")
-    st.stop()
+apik = os.environ["GROQ_API_KEY"] = "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"
     
 # Initialize two different Llama3 models
 chat_alpha = init_chat_model("llama3-8b-8192", model_provider="groq")  # Alpha's model
@@ -70,15 +67,17 @@ def extract_text_from_pdf(pdf_file):
         return "".join([page.extract_text() for page in pdf_reader.pages])
     except Exception as e:
         return f"Error extracting PDF text: {str(e)}"
-
-# Extract text from DOCX
-def extract_text_from_docx(docx_file):
-    try:
-        doc = Document(docx_file)
-        return "\n".join([para.text for para in doc.paragraphs])
-    except Exception as e:
-        return f"Error extracting DOCX text: {str(e)}"
     
+
+# File Upload Section (Only PDF, Max 10MB)
+uploaded_file = st.file_uploader("Upload a PDF document!", type=["pdf"])
+extracted_text = ""
+
+if uploaded_file:
+    if uploaded_file.size > 10 * 1024 * 1024:  # 10MB limit
+        st.error("File size exceeds 10MB. Please upload a smaller file.")
+    else:
+        extracted_text = extract_text_from_pdf(uploaded_file)   
 
 # Initialize confusion matrix
 if 'conf_matrix' not in st.session_state:
@@ -119,103 +118,92 @@ def update_sidebar():
             st.success("Confusion Matrix & Model Metrics Reset!")
             st.experimental_rerun()  # Force UI refresh
 
-# ✅ AI Podcast Function (Now Updates Sidebar After Running)
+# AI Podcast Function (Modified to Use Uploaded Document) 
 def start_ai_podcast():
-    for i in range(10):  # Alpha generates 10 questions
-        if i < 5:
-            question_prompt = "Generate a short question (1-3 lines) about CSUSB's podcast, events, admissions, or other CSUSB-related information that Beta can answer."
+    for i in range(10):
+        if extracted_text:
+            question_prompt = f"""
+            Generate a short, clear, and direct question (1-3 lines) based on the following document content:
+            {extracted_text[:1000]}  # Use first 1000 characters for context
+            """
         else:
-            question_prompt = "Generate a short question (1-3 lines) about CSUSB that Beta is unlikely to know."
+            question_prompt = "Generate a short, clear, and direct question (1-3 lines) about CSUSB's podcast, events, admissions, or other CSUSB-related information."
 
         messages.append(HumanMessage(content=question_prompt))
         question_response = chat_alpha.invoke(messages)
         question = question_response.content.strip() if question_response else "Could not generate a question."
 
-        st.write(f"**Alpha:** {question}")
-        time.sleep(1)
+        # ✅ Ensure the question is properly formatted without unnecessary prefixes
+        if question.startswith("→") or question.lower().startswith("alpha:") or "here is a short question" in question.lower():
+            question = question.replace("→", "").replace("Alpha:", "").replace("here is a short question based on the document content:", "").strip()
 
-        # Show "Beta is thinking..." message
+        st.write(f"**Alpha:** {question}") 
+        time.sleep(1)
+        
         thinking_text = st.empty()
         thinking_text.write("**Beta is thinking...**")
         time.sleep(4)
 
-        # ✅ Ensure Beta Receives Only the Question (Fix Repeating Prompt Issue)
         beta_prompt = f"""
-        You are an AI assistant answering questions about CSUSB.
-        Answer the following question in **3-4 bullet points**.
+        You are an AI assistant answering questions. Provide an accurate response in the following format:
+
+        → (1-2 line summary of the answer)
+        **Key Points:**
+        - First key point
+        - Second key point
+        - Third key point
 
         **Question:** {question}
         """
-        response = chat_beta.invoke([SystemMessage(content=beta_prompt)])  # Pass only the formatted question
+
+        response = chat_beta.invoke([SystemMessage(content=beta_prompt)])
         ai_response = response.content.strip() if response else "I don't know"
 
-        # ✅ Ensure Correct Answer Formatting
         if i >= 5 or "I don't know" in ai_response or not ai_response:
             ai_response_summary = "I don't know"
-            st.session_state.conf_matrix[1, 0] += 1  # False Negative
         else:
-            response_lines = ai_response.split("\n")
-            ai_response_summary = "\n".join([f"- {line.strip()}" for line in response_lines if line.strip()])  # Convert to bullet points
-            st.session_state.conf_matrix[0, 0] += 1  # True Positive
+            st.session_state.conf_matrix[0, 0] += 1
 
-        messages.append(AIMessage(content=ai_response_summary))
+        messages.append(AIMessage(content=ai_response))
         thinking_text.empty()
-        st.markdown(f"**Beta:**\n\n{ai_response_summary}")  # Ensure bullet points appear correctly
+        st.markdown(f"**Beta:**\n\n{ai_response}")
         st.markdown("---")
 
         time.sleep(1)
 
     # ✅ Update Sidebar After Running Podcast
     update_sidebar()
-
-# File Upload Section
-uploaded_file = st.file_uploader("Upload a document (PDF, DOCX)", type=["pdf", "docx"])
-extracted_text = ""
-
-if uploaded_file:
-    extracted_text = extract_text_from_pdf(uploaded_file) if uploaded_file.type == "application/pdf" else extract_text_from_docx(uploaded_file)
-
-if st.button("Process Extracted Text"):
-    if extracted_text:
-        messages.append(HumanMessage(content=extracted_text))
-        response = chat_alpha.invoke(messages)  # Using Alpha model
-        ai_response = response.content if response else "I don't know"
-        st.write(f"**Extracted Text:** {extracted_text}")
-        st.write(f"**AI Response:** {ai_response}")
-    else:
-        st.warning("No text extracted to process.")
         
 # Chatbot Input for Document-based or Model-based Communication
 user_input = st.text_input("Ask the Chatbot a Question (Document-based or Model-based)", key="chat_input")
 
 if st.button("Submit", key="submit_button_1"):
-    def get_document_based_prompt(extracted_text, user_query):
-        return f"""
-        You are an AI assistant. The following is the content extracted from a document uploaded by the user. Use this extracted text to respond to the user's queries. Please do not generate answers outside of the provided document text.
+    if extracted_text:
+        prompt = f"""
+        You are an AI assistant. The following is the content extracted from a document uploaded by the user. Use this extracted text to respond to the user's queries.
 
         Extracted Document Text:
-        {extracted_text}
+        {extracted_text[:1000]}
 
-        User Query: {user_query}
+        **User Query:** {user_input}
 
-        Please provide the most relevant response from the document above.
+        Provide an accurate response in the requested format.
+        """
+    else:
+        prompt = f"""
+        You are an AI assistant with general knowledge. Please respond to the user's query based on your pre-trained knowledge.
+        
+        **User Query:** {user_input}
+
+        Provide an accurate response in the requested format.
         """
 
-    def get_model_based_prompt(user_query):
-        return f"""
-        You are an AI assistant with general knowledge. Please respond to the user's query based on your pre-trained knowledge. Do not refer to any uploaded documents or extracted text unless explicitly instructed.
-
-        User Query: {user_query}
-
-        Please provide the most relevant and accurate response based on your training.
-        """
-
-    prompt = get_document_based_prompt(extracted_text, user_input) if uploaded_file else get_model_based_prompt(user_input)
     response = chat_alpha.invoke([SystemMessage(content=prompt)]) if uploaded_file else chat_beta.invoke([SystemMessage(content=prompt)])
     ai_response = response.content if response else "I do not know!"
     
     st.write(f"**User:** {user_input}")
     st.write(f"**AI Response:** {ai_response}")
+
 
     # Update confusion matrix
     if "I do not know!" in ai_response:
@@ -244,4 +232,3 @@ if st.session_state["podcast_started"]:
     st.write("---")  # Separator for clarity
     start_ai_podcast()  # Run the AI podcast function
             
-
