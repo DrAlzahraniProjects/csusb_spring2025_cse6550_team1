@@ -69,15 +69,26 @@ def extract_text_from_pdf(pdf_file):
         return f"Error extracting PDF text: {str(e)}"
     
 
-# File Upload Section (Only PDF, Max 10MB)
-# File Upload Section with size limit (10MB)
-uploaded_file = st.file_uploader("Upload a document (Max: 10MB, PDF/DOCX)", type=["pdf", "docx"])
+# Apply CSS to hide the misleading 200MB limit message
+hide_streamlit_style = """
+    <style>
+        div[data-testid="stFileUploader"] div[aria-live="polite"] {
+            display: none;
+        }
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+# File Upload Section (PDF Only, Max 10MB)
+uploaded_file = st.file_uploader("Upload a PDF document (Max: 10MB)", type=["pdf"])
 
 if uploaded_file:
-    if uploaded_file.size > 10 * 1024 * 1024:  # 10MB limit
-        st.error("File size exceeds the 10MB limit. Please upload a smaller file.")
+    if uploaded_file.size > 10 * 1024 * 1024:  # Check if file exceeds 10MB
+        st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
+        uploaded_file = None  # Discard the file
     else:
-        extracted_text = extract_text_from_pdf(uploaded_file) if uploaded_file.type == "application/pdf" else extract_text_from_docx(uploaded_file)
+        # Process the PDF
+        extracted_text = extract_text_from_pdf(uploaded_file)
 
 
 # Initialize confusion matrix
