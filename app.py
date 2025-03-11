@@ -297,7 +297,7 @@ def test_ai_rephrasing():
 
         # Update confusion matrix
         if "I don't know" in ai_response:
-            st.session_state.conf_matrix[1, 0] += 1
+            st.session_state.conf_matrix[1, 1] += 1
         else:
             st.session_state.conf_matrix[0, 0] += 1
 
