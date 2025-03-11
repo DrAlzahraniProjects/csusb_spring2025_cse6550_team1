@@ -45,4 +45,4 @@ RUN echo "ProxyPass /team1s25 http://localhost:2501/team1s25" >> /etc/apache2/si
 RUN a2enmod proxy proxy_http rewrite
 
 # Start Apache, Streamlit, and Jupyter Notebook using `sh` in the CMD
-CMD ["sh", "-c", "apache2ctl start & streamlit run app.py --server.port=2501 --server.baseUrlPath=/team1s25 & jupyter notebook --port=2511 --ip=0.0.0.0 --NotebookApp.base_url=/team1s25/jupyter --NotebookApp.notebook_dir=/app --NotebookApp.token='' --allow-root"]
+CMD ["sh", "-c", "apache2ctl start & streamlit run app.py --server.port=2501 --server.baseUrlPath=/team1s25  --allow-root"]
