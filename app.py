@@ -9,11 +9,37 @@ import PyPDF2
 import time
 from docx import Document
 
-
 # ✅ Update Streamlit App Header (Title, Icon, and Layout)
 st.set_page_config(
     page_title="CSUSB Study Podcast",
     page_icon="logo/csusb_logo.png", 
+)
+
+# Load custom CSS
+st.markdown(
+    """
+    <style>
+    div[data-testid="stFileUploader"] div[aria-live="polite"] {
+        display: none !important;
+    }
+
+    .stButton button {
+        width: 100%;
+    }
+
+    .submit-button-container {
+        display: flex;
+        align-items: flex-end;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+    }
+
+    .stTextInput > div > div > input {
+        padding-bottom: 0 !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
 )
 
 # Header Section
@@ -70,20 +96,6 @@ def extract_text_from_pdf(pdf_file):
         return "".join([page.extract_text() for page in pdf_reader.pages])
     except Exception as e:
         return f"Error extracting PDF text: {str(e)}"
-    
-
-# Apply CSS to hide the misleading 10MB limit message
-st.markdown(
-    """
-    <style>
-        /* Hide the 200MB limit text */
-        div[data-testid="stFileUploader"] div[aria-live="polite"] {
-            display: none !important;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
 
 # File Upload Section (PDF Only, Max 10MB)
 uploaded_file = st.file_uploader("Upload a PDF document (Max: 10MB)", type=["pdf"])
@@ -121,12 +133,15 @@ def update_sidebar():
         precision = (tp / (tp + fp)) * 100 if (tp + fp) > 0 else 0
         recall = (tp / (tp + fn)) * 100 if (tp + fn) > 0 else 0
         f1_score = (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+        specificity = (tn / (tn + fp)) * 100 if (tn + fp) > 0 else 0
+        sensitivity = recall  # Sensitivity is the same as recall
 
         # ✅ Display Updated Model Metrics in Sidebar
         st.markdown("### Model Metrics")
         st.write(f"**Model Accuracy:** {model_accuracy:.2f}%")
         st.write(f"**Precision:** {precision:.2f}%")
-        st.write(f"**Recall:** {recall:.2f}%")
+        st.write(f"**Recall (Sensitivity):** {recall:.2f}%")
+        st.write(f"**Specificity:** {specificity:.2f}%")
         st.write(f"**F1 Score:** {f1_score:.2f}%")
 
         # ✅ Reset Button to Clear Confusion Matrix and Model Metrics
@@ -191,64 +206,6 @@ def start_ai_podcast():
 
     # ✅ Update Sidebar After Running Podcast
     update_sidebar()
-        
-# Chatbot Input for Document-based or Model-based Communication
-user_input = st.text_input("Ask the Chatbot a Question (Document-based or Model-based)", key="chat_input")
-
-if st.button("Submit", key="submit_button_1"):
-    if extracted_text:
-        prompt = f"""
-        You are an AI assistant. The following is the content extracted from a document uploaded by the user. Use this extracted text to respond to the user's queries.
-
-        Extracted Document Text:
-        {extracted_text[:1000]}
-
-        **User Query:** {user_input}
-
-        Provide an accurate response in the requested format.
-        """
-    else:
-        prompt = f"""
-        You are an AI assistant with general knowledge. Please respond to the user's query based on your pre-trained knowledge.
-        
-        **User Query:** {user_input}
-
-        Provide an accurate response in the requested format.
-        """
-
-    response = chat_alpha.invoke([SystemMessage(content=prompt)]) if uploaded_file else chat_beta.invoke([SystemMessage(content=prompt)])
-    ai_response = response.content if response else "I do not know!"
-    
-    st.write(f"**User:** {user_input}")
-    st.write(f"**AI Response:** {ai_response}")
-
-
-    # Update confusion matrix
-    if "I do not know!" in ai_response:
-        st.session_state.conf_matrix[1, 0] += 1
-    else:
-        st.session_state.conf_matrix[0, 0] += 1
-
-
-# Create two buttons in separate columns but trigger the same podcast function
-col1, col2 = st.columns(2)
-
-with col1:
-    if st.button("Start AI Podcast (Click)", key="start_podcast_button_1"):
-        st.session_state["podcast_started"] = True
-
-with col2:
-    if st.button("Start AI Podcast (Say: Podcast!)", key="start_podcast_voice_command_button"):
-        podcast_command = listen_to_microphone()
-        if "podcast" in podcast_command:
-            st.session_state["podcast_started"] = True
-        else:
-            st.write(f"Command '{podcast_command}' not recognized for podcast start.")
-
-# Unified Output Section (Ensuring Output Appears Below in a Single Row)
-if st.session_state["podcast_started"]:
-    st.write("---")  # Separator for clarity
-    start_ai_podcast()  # Run the AI podcast function
 
 # Function to test AI rephrasing and answering
 def test_ai_rephrasing():
@@ -303,7 +260,71 @@ def test_ai_rephrasing():
 
     # Update Sidebar After Running Test AI
     update_sidebar()
+      
+# Create three buttons in separate columns above the text input box
+col1, col2, col3 = st.columns(3)
 
-# Add a new button for testing AI rephrasing
-if st.button("Test AI", key="test_ai_button"):
-    test_ai_rephrasing()
+with col1:
+    if st.button(":material/voice_chat: Start AI Podcast", key="start_podcast_button_1"):
+        st.session_state["podcast_started"] = True
+
+with col2:
+    if st.button(":material/mic: Start AI Podcast", key="start_podcast_voice_command_button"):
+        podcast_command = listen_to_microphone()
+        if "podcast" in podcast_command:
+            st.session_state["podcast_started"] = True
+        else:
+            st.write(f"Command '{podcast_command}' not recognized for podcast start.")
+
+with col3:
+    if st.button(":material/bug_report: Test AI", key="test_ai_button"):
+        st.session_state["test_ai_clicked"] = True
+
+# Chatbot Input for Document-based or Model-based Communication
+col1, col2 = st.columns([4, 1])
+with col1:
+    user_input = st.text_input("Ask the Chatbot a Question (Document-based or Model-based)", key="chat_input")
+with col2:
+    st.markdown('<div class="submit-button-container">', unsafe_allow_html=True)
+    if st.button(":material/send: Submit", key="submit_button_1"):
+        if extracted_text:
+            prompt = f"""
+            You are an AI assistant. The following is the content extracted from a document uploaded by the user. Use this extracted text to respond to the user's queries.
+
+            Extracted Document Text:
+            {extracted_text[:1000]}
+
+            **User Query:** {user_input}
+
+            Provide an accurate response in the requested format.
+            """
+        else:
+            prompt = f"""
+            You are an AI assistant with general knowledge. Please respond to the user's query based on your pre-trained knowledge.
+            
+            **User Query:** {user_input}
+
+            Provide an accurate response in the requested format.
+            """
+
+        response = chat_alpha.invoke([SystemMessage(content=prompt)]) if uploaded_file else chat_beta.invoke([SystemMessage(content=prompt)])
+        ai_response = response.content if response else "I do not know!"
+        
+        st.write(f"**User:** {user_input}")
+        st.write(f"**AI Response:** {ai_response}")
+
+        # Update confusion matrix
+        if "I do not know!" in ai_response:
+            st.session_state.conf_matrix[1, 0] += 1
+        else:
+            st.session_state.conf_matrix[0, 0] += 1
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# Unified Output Section (Ensuring Output Appears Below in a Single Row)
+if st.session_state["podcast_started"]:
+    st.write("---")  # Separator for clarity
+    start_ai_podcast()  # Run the AI podcast function
+
+if st.session_state.get("test_ai_clicked"):
+    st.write("---")  # Separator for clarity
+    test_ai_rephrasing()  # Run the AI rephrasing and answering function

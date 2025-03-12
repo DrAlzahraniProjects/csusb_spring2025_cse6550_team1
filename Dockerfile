@@ -30,7 +30,8 @@ RUN pip install -r requirements.txt
 # Copy your Python code into the Docker container
 COPY team1-demo-chatbot.ipynb /app
 COPY app.py /app
-COPY logo/csusb_logo.png /app/logo/
+COPY logo /app/logo
+COPY .streamlit /app/.streamlit
 
 
 # Expose ports for Streamlit and Jupyter
