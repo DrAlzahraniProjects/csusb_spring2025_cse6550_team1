@@ -1,1 +1,2 @@
 Sharukh: Updated google colab with the latest changes
+Dwaraka: Updated architecture design with the latest changes
