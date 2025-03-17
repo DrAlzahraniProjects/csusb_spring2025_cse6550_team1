@@ -197,6 +197,10 @@ def start_ai_podcast():
         question_response = chat_alpha.invoke(messages)
         question = question_response.content.strip() if question_response else "Could not generate a question."
 
+        # ✅ Ensure the question is properly formatted without unnecessary prefixes
+        if question.startswith("→") or question.lower().startswith("alpha:") or "here is a short question" in question.lower():
+            question = question.replace("→", "").replace("Alpha:", "").replace("here is a short question based on the document content:", "").strip()
+             
         # ✅ Alpha's text and speech appear together
         alpha_text = f"**Alpha:** {question}"
         alpha_placeholder = st.empty()
