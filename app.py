@@ -8,6 +8,37 @@ from langchain.schema import SystemMessage, HumanMessage, AIMessage
 import PyPDF2
 import time
 from docx import Document
+import pyttsx3 
+import threading
+import queue  
+
+# ✅ Initialize Text-to-Speech Engine
+engine = pyttsx3.init()
+tts_queue = queue.Queue()
+
+# ✅ Function to Process TTS Requests in a Separate Thread
+def tts_worker():
+    while True:
+        text, voice = tts_queue.get()
+        if text is None:
+            break  # Stop the worker thread
+        voices = engine.getProperty('voices')
+        if voice == "alpha":
+            engine.setProperty('voice', voices[0].id)  # Alpha's voice
+        else:
+            engine.setProperty('voice', voices[1].id)  # Beta's voice
+        
+        engine.say(text)
+        engine.runAndWait()
+        tts_queue.task_done()
+
+# ✅ Start TTS Thread
+tts_thread = threading.Thread(target=tts_worker, daemon=True)
+tts_thread.start()
+
+# ✅ Function to Speak Text (Both Alpha & Beta Speak)
+def speak_text(text, voice="alpha"):
+    tts_queue.put((text, voice))  # Now, Beta's voice is also enabled!
 
 # ✅ Update Streamlit App Header (Title, Icon, and Layout)
 st.set_page_config(
@@ -57,10 +88,7 @@ with col2:  # Center content in the middle column
         )
         
 # Initialize API key
-apik = os.getenv("GROQ_API_KEY")
-if not apik:
-     st.error("Error: Please set your GROQ_API_Key variable.")
-     st.stop()
+apik = os.environ["GROQ_API_KEY"] = "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"
     
 # Initialize two different Llama3 models
 chat_alpha = init_chat_model("llama3-8b-8192", model_provider="groq")  # Alpha's model
@@ -166,25 +194,29 @@ def start_ai_podcast():
         question_response = chat_alpha.invoke(messages)
         question = question_response.content.strip() if question_response else "Could not generate a question."
 
-        # ✅ Ensure the question is properly formatted without unnecessary prefixes
-        if question.startswith("→") or question.lower().startswith("alpha:") or "here is a short question" in question.lower():
-            question = question.replace("→", "").replace("Alpha:", "").replace("here is a short question based on the document content:", "").strip()
+        # ✅ Alpha's text and speech appear together
+        alpha_text = f"**Alpha:** {question}"
+        alpha_placeholder = st.empty()
+        alpha_placeholder.markdown("")  # Start empty
 
-        st.write(f"**Alpha:** {question}") 
-        time.sleep(1)
-        
+        speak_text(question, voice="alpha")  # 🎙️ Alpha Speaks
+
+        # Typing effect - Update text as it speaks
+        for i in range(len(question)):
+            alpha_placeholder.markdown(f"**Alpha:** {question[:i+1]}")
+            time.sleep(0.05)  # Slow typing effect
+
+        time.sleep(1)  # Small delay after Alpha finishes speaking
+
+        # ✅ Beta's "Thinking..." effect
         thinking_text = st.empty()
         thinking_text.write("**Beta is thinking...**")
-        time.sleep(4)
+        time.sleep(5)  # Beta waits for 5 seconds
 
         beta_prompt = f"""
         You are an AI assistant answering questions. Provide an accurate response in the following format:
 
-        → (1-2 line summary of the answer)
-        **Key Points:**
-        - First key point
-        - Second key point
-        - Third key point
+        → (1-2-3 line summary of the answer)
 
         **Question:** {question}
         """
@@ -198,11 +230,20 @@ def start_ai_podcast():
             st.session_state.conf_matrix[0, 0] += 1
 
         messages.append(AIMessage(content=ai_response))
-        thinking_text.empty()
-        st.markdown(f"**Beta:**\n\n{ai_response}")
+        # ✅ Beta's text and speech appear together
+        beta_placeholder = st.empty()
+        beta_placeholder.markdown("")  # Start empty
+
+        speak_text(ai_response, voice="beta")  # 🎙️ Beta Speaks
+
+        # Typing effect - Update text as it speaks
+        for i in range(len(ai_response)):
+            beta_placeholder.markdown(f"**Beta:** {ai_response[:i+1]}")
+            time.sleep(0.05)  # Slow typing effect
+
         st.markdown("---")
 
-        time.sleep(1)
+        time.sleep(2)  # Small delay before the next question
 
     # ✅ Update Sidebar After Running Podcast
     update_sidebar()
@@ -236,21 +277,46 @@ def test_ai_rephrasing():
             beta_prompt = f"""
             You are an AI assistant answering questions. Provide an accurate response in the following format:
 
-            → (1-2 line summary of the answer)
-            **Key Points:**
-            - First key point
-            - Second key point
-            - Third key point
+            → (1-2-3 line summary of the answer)
 
             **Question:** {rephrased_question}
             """
             response = chat_beta.invoke([SystemMessage(content=beta_prompt)])
             ai_response = response.content.strip() if response else "I don't know"
 
-        st.write(f"**Original Question:** {question}")
-        st.write(f"**Rephrased Question (Alpha):** {rephrased_question}")
-        st.write(f"**Beta's Answer:**\n\n{ai_response}")
+        # st.write(f"**Original Question:** {question}")
+        # ✅ Alpha's text and speech appear together
+        alpha_text = f"**Alpha:** {question}"
+        alpha_placeholder = st.empty()
+        alpha_placeholder.markdown("")  # Start empty
+
+        # ✅ Beta's "Thinking..." effect
+        thinking_text = st.empty()
+        thinking_text.write("**Beta is thinking...**")
+        time.sleep(5)  # Beta waits for 5 seconds
+
+        speak_text(question, voice="alpha")  # 🎙️ Alpha Speaks
+
+        # Typing effect - Update text as it speaks
+        for i in range(len(question)):
+            alpha_placeholder.markdown(f"**Alpha:** {question[:i+1]}")
+            time.sleep(0.05)  # Slow typing effect
+
+        time.sleep(1)  # Small delay after Alpha finishes speaking
+        # ✅ Beta's text and speech appear together
+        beta_placeholder = st.empty()
+        beta_placeholder.markdown("")  # Start empty
+
+        speak_text(ai_response, voice="beta")  # 🎙️ Beta Speaks
+
+        # Typing effect - Update text as it speaks
+        for i in range(len(ai_response)):
+            beta_placeholder.markdown(f"**Beta:** {ai_response[:i+1]}")
+            time.sleep(0.05)  # Slow typing effect
+
         st.markdown("---")
+
+        time.sleep(2)  # Small delay before the next question
 
         # Update confusion matrix
         if "I don't know" in ai_response:
@@ -269,7 +335,7 @@ with col1:
         st.session_state["podcast_started"] = True
 
 with col2:
-    if st.button(":material/mic: Start AI Podcast", key="start_podcast_voice_command_button"):
+    if st.button(":material/mic: Start AI Podcast(Say: Podcast!)", key="start_podcast_voice_command_button"):
         podcast_command = listen_to_microphone()
         if "podcast" in podcast_command:
             st.session_state["podcast_started"] = True
