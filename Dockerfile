@@ -6,6 +6,7 @@ RUN apt-get update && \
     apt-get install -y \
     apache2 \
     apache2-utils \
+    espeak-ng \
     && apt-get clean
 
 # Install the required Apache modules for proxy and WebSocket support
