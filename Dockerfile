@@ -1,12 +1,13 @@
 # Use official Python image as the base image
 FROM python:3.10-slim
 
-# Install dependencies for running Apache and Streamlit
+# Install dependencies for running Apache, Streamlit, and espeak-ng
 RUN apt-get update && \
     apt-get install -y \
     apache2 \
     apache2-utils \
     espeak-ng \
+    pulseaudio \
     && apt-get clean
 
 # Install the required Apache modules for proxy and WebSocket support

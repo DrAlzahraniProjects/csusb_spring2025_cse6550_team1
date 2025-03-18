@@ -7,7 +7,6 @@ from langchain.chat_models import init_chat_model
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
 import PyPDF2
 import time
-from docx import Document
 import pyttsx3 
 import threading
 import queue  
