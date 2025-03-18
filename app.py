@@ -7,42 +7,22 @@ from langchain.chat_models import init_chat_model
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
 import PyPDF2
 import time
-import pyttsx3 
-import threading
-import queue  
-
-# ✅ Initialize Text-to-Speech Engine
-engine = pyttsx3.init()
-tts_queue = queue.Queue()
-
-# ✅ Function to Process TTS Requests in a Separate Thread
-def tts_worker():
-    while True:
-        text, voice = tts_queue.get()
-        if text is None:
-            break  # Stop the worker thread
-        voices = engine.getProperty('voices')
-        if voice == "alpha":
-            engine.setProperty('voice', voices[0].id)  # Alpha's voice
-        else:
-            engine.setProperty('voice', voices[1].id)  # Beta's voice
-        
-        engine.say(text)
-        engine.runAndWait()
-        tts_queue.task_done()
-
-# ✅ Start TTS Thread
-tts_thread = threading.Thread(target=tts_worker, daemon=True)
-tts_thread.start()
+from streamlit_TTS import auto_play, text_to_audio  # ✅ Using streamlit-tts for real-time playback
+from gtts.lang import tts_langs  # ✅ Importing available languages from gTTS
 
 # ✅ Function to Speak Text (Both Alpha & Beta Speak)
-def speak_text(text, voice="alpha"):
-    tts_queue.put((text, voice))  # Now, Beta's voice is also enabled!
+def speak_text(text, voice):
+    # Set language/accent based on the voice
+    language = "en" if voice == "alpha" else "en"  # Alpha uses US English, Beta uses British English
+    # Generate audio for the text
+    audio = text_to_audio(text, language=language)
+    # Play the audio in the browser
+    auto_play(audio)
 
 # ✅ Update Streamlit App Header (Title, Icon, and Layout)
 st.set_page_config(
     page_title="CSUSB Study Podcast",
-    page_icon="logo/csusb_logo.png", 
+    page_icon="logo/csusb_logo.png",
 )
 
 # Load custom CSS
@@ -186,11 +166,11 @@ def start_ai_podcast():
     for i in range(10):
         if extracted_text:
             question_prompt = f"""
-            Generate a short, clear, and direct question (1-3 lines) based on the following document content:
+            Generate a short, clear, and direct question (1-3 lines) without mentioning the prompt based on the following document content:
             {extracted_text[:1000]}  # Use first 1000 characters for context
             """
         else:
-            question_prompt = "Generate a short, clear, and direct question (1-3 lines) about CSUSB's podcast, events, admissions, or other CSUSB-related information."
+            question_prompt = "Generate a short, clear, and direct question (1-3 lines) about CSUSB's podcast, events, admissions, or other CSUSB-related information without mentioning the prompt."
 
         messages.append(HumanMessage(content=question_prompt))
         question_response = chat_alpha.invoke(messages)
@@ -212,17 +192,10 @@ def start_ai_podcast():
             alpha_placeholder.markdown(f"**Alpha:** {question[:i+1]}")
             time.sleep(0.05)  # Slow typing effect
 
-        time.sleep(1)  # Small delay after Alpha finishes speaking
-
         # ✅ Beta's "Thinking..." effect
-        thinking_text = st.empty()
-        thinking_text.write("**Beta is thinking...**")
-        time.sleep(5)  # Beta waits for 5 seconds
 
         beta_prompt = f"""
-        You are an AI assistant answering questions. Provide an accurate response in the following format:
-
-        → (1-2-3 line summary of the answer)
+        You are an AI assistant answering questions. Provide an accurate direct short response without rephrasing my prompt and just directly shortly answering the questions.
 
         **Question:** {question}
         """
@@ -281,9 +254,7 @@ def test_ai_rephrasing():
             ai_response = "I don't know"
         else:
             beta_prompt = f"""
-            You are an AI assistant answering questions. Provide an accurate response in the following format:
-
-            → (1-2-3 line summary of the answer)
+            You are an AI assistant answering questions. Provide an accurate short response without mentioning this prompt.
 
             **Question:** {rephrased_question}
             """
@@ -295,11 +266,6 @@ def test_ai_rephrasing():
         alpha_text = f"**Alpha:** {question}"
         alpha_placeholder = st.empty()
         alpha_placeholder.markdown("")  # Start empty
-
-        # ✅ Beta's "Thinking..." effect
-        thinking_text = st.empty()
-        thinking_text.write("**Beta is thinking...**")
-        time.sleep(5)  # Beta waits for 5 seconds
 
         speak_text(question, voice="alpha")  # 🎙️ Alpha Speaks
 

@@ -1,13 +1,12 @@
 # Use official Python image as the base image
 FROM python:3.10-slim
 
-# Install dependencies for running Apache, Streamlit, and espeak-ng
+# Install system dependencies for running Apache, Streamlit, and TTS
 RUN apt-get update && \
     apt-get install -y \
     apache2 \
     apache2-utils \
-    espeak-ng \
-    pulseaudio \
+    ffmpeg \ 
     && apt-get clean
 
 # Install the required Apache modules for proxy and WebSocket support
@@ -21,13 +20,11 @@ RUN apt-get update && \
 # Set up the work directory
 WORKDIR /app
 
-RUN pip install PyPDF2
-
 # Copy your requirements.txt into the Docker container
 COPY requirements.txt /app/
 
 # Install Python dependencies from requirements.txt
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy your Python code into the Docker container
 COPY app.py /app

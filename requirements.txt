@@ -2,9 +2,9 @@ langchain.core
 langchain[groq]
 streamlit
 langchain_community
-streamlit
 llama-index
 openai
 PyPDF2
 SpeechRecognition
-pyttsx3
+streamlit-TTS
+gTTS
