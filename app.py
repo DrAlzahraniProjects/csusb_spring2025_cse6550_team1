@@ -163,68 +163,107 @@ def update_sidebar():
 
 # AI Podcast Function (Modified to Use Uploaded Document) 
 def start_ai_podcast():
-    for i in range(10):
+    st.markdown("## 🎙️ Welcome to the AI Podcast")
+
+    messages.clear()  # Clear past messages
+
+    # 🧠 Alpha starts the podcast with an intro
+    intro = """
+    Hello listeners! I'm **Alpha**, your friendly podcast host. 
+    Today, we're diving into a fascinating discussion about the document you provided.
+    And I'm thrilled to introduce our guest, **Beta**, a brilliant AI assistant here to answer all things related to the topic. Welcome, Beta!
+    """
+    alpha_placeholder = st.empty()
+    alpha_placeholder.markdown("")
+    speak_text(intro, voice="alpha")
+
+    for i in range(len(intro)):
+        alpha_placeholder.markdown(intro[:i+1])
+        time.sleep(0.03)
+
+    st.markdown("---")
+
+    time.sleep(2)
+
+    for q_num in range(10):
         if extracted_text:
+            context = extracted_text[:1000]
             question_prompt = f"""
-            Generate a short, clear, and direct question (1-3 lines) without mentioning the prompt based on the following document content:
-            {extracted_text[:1000]}  # Use first 1000 characters for context
+            Based on this document, generate a short, clear, and direct question that Alpha can ask Beta during a podcast conversation:
+            {context}
             """
         else:
-            question_prompt = "Generate a short, clear, and direct question (1-3 lines) about CSUSB's podcast, events, admissions, or other CSUSB-related information without mentioning the prompt."
+            question_prompt = "Generate a short, clear, and direct question Alpha can ask Beta about CSUSB-related topics."
 
+        # Alpha generates question
         messages.append(HumanMessage(content=question_prompt))
         question_response = chat_alpha.invoke(messages)
-        question = question_response.content.strip() if question_response else "Could not generate a question."
+        question = question_response.content.strip() if question_response else "Let's move to the next question."
 
-        # ✅ Ensure the question is properly formatted without unnecessary prefixes
-        if question.startswith("→") or question.lower().startswith("alpha:") or "here is a short question" in question.lower():
-            question = question.replace("→", "").replace("Alpha:", "").replace("here is a short question based on the document content:", "").strip()
-             
-        # ✅ Alpha's text and speech appear together
-        alpha_text = f"**Alpha:** {question}"
+        # Clean up unnecessary phrasing
+        question = question.replace("→", "").replace("Alpha:", "").replace("here is a short question based on the document content:", "").strip()
+
+        # 🎙️ Alpha asks the question
+        alpha_q = f"Alright Beta, here's question {q_num + 1}: {question}"
         alpha_placeholder = st.empty()
-        alpha_placeholder.markdown("")  # Start empty
+        alpha_placeholder.markdown("")
+        speak_text(alpha_q, voice="alpha")
 
-        speak_text(question, voice="alpha")  # 🎙️ Alpha Speaks
+        for i in range(len(alpha_q)):
+            alpha_placeholder.markdown(f"**Alpha:** {alpha_q[:i+1]}")
+            time.sleep(0.04)
 
-        # Typing effect - Update text as it speaks
-        for i in range(len(question)):
-            alpha_placeholder.markdown(f"**Alpha:** {question[:i+1]}")
-            time.sleep(0.05)  # Slow typing effect
+        time.sleep(1)
 
-        # ✅ Beta's "Thinking..." effect
-
+        # 🧠 Beta answers the question
         beta_prompt = f"""
-        You are an AI assistant answering questions. Provide an accurate direct short response without rephrasing my prompt and just directly shortly answering the questions.
-
+        You are Beta, an expert AI guest. Respond clearly and accurately to the following question based on the document:
         **Question:** {question}
         """
-
         response = chat_beta.invoke([SystemMessage(content=beta_prompt)])
-        ai_response = response.content.strip() if response else "I don't know"
-
-        if i >= 5 or "I don't know" in ai_response or not ai_response:
-            ai_response_summary = "I don't know"
-        else:
-            st.session_state.conf_matrix[0, 0] += 1
+        ai_response = response.content.strip() if response else "I'm not sure about that."
 
         messages.append(AIMessage(content=ai_response))
-        # ✅ Beta's text and speech appear together
+
         beta_placeholder = st.empty()
-        beta_placeholder.markdown("")  # Start empty
+        beta_placeholder.markdown("")
+        speak_text(ai_response, voice="beta")
 
-        speak_text(ai_response, voice="beta")  # 🎙️ Beta Speaks
-
-        # Typing effect - Update text as it speaks
         for i in range(len(ai_response)):
             beta_placeholder.markdown(f"**Beta:** {ai_response[:i+1]}")
-            time.sleep(0.05)  # Slow typing effect
+            time.sleep(0.04)
+
+        time.sleep(1)
+
+        # 🧠 Alpha reacts or adds commentary
+        follow_up_prompt = f"""
+        You are Alpha. Give a short (1-2 sentence) commentary or light follow-up to Beta's answer, as if reacting during a podcast.
+        Make it sound friendly and podcast-like.
+        
+        **Beta's Response:** {ai_response}
+        """
+        alpha_follow_up = chat_alpha.invoke([HumanMessage(content=follow_up_prompt)]).content.strip()
+
+        messages.append(HumanMessage(content=alpha_follow_up))
+        alpha_placeholder = st.empty()
+        alpha_placeholder.markdown("")
+        speak_text(alpha_follow_up, voice="alpha")
+
+        for i in range(len(alpha_follow_up)):
+            alpha_placeholder.markdown(f"**Alpha:** {alpha_follow_up[:i+1]}")
+            time.sleep(0.04)
 
         st.markdown("---")
+        time.sleep(2)
 
-        time.sleep(2)  # Small delay before the next question
+    # 🎉 Wrap-up
+    outro = """
+    And that’s a wrap for today’s podcast! Huge thanks to Beta for joining me, and thank YOU for listening.
+    Stay curious and keep exploring. Until next time, this is Alpha signing off. 👋
+    """
+    speak_text(outro, voice="alpha")
+    st.markdown("**Alpha:** " + outro)
 
-    # ✅ Update Sidebar After Running Podcast
     update_sidebar()
 
 # Function to test AI rephrasing and answering
