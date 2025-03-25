@@ -201,15 +201,10 @@ def start_ai_podcast():
     intro_response = chat_alpha.invoke([HumanMessage(content=intro_prompt)])
     intro = intro_response.content.strip()
     alpha_placeholder = st.empty()
-    alpha_placeholder.markdown("")
-
-    for i in range(len(intro)):
-        alpha_placeholder.markdown(intro[:i+1])
-        time.sleep(0.0015)
+    alpha_placeholder.markdown(f"**Alpha:** {intro}")
     speak_text(intro, voice="alpha")
 
     st.markdown("---")
-
     time.sleep(2)
 
     for q_num in range(10):
@@ -240,12 +235,7 @@ def start_ai_podcast():
         # 🎙️ Alpha asks the question
         alpha_q = generate_alpha_question_intro(q_num, question)
         alpha_placeholder = st.empty()
-        alpha_placeholder.markdown("")
-
-        for i in range(len(alpha_q)):
-            alpha_placeholder.markdown(f"**Alpha:** {alpha_q[:i+1]}")
-            time.sleep(0.0015)
-
+        alpha_placeholder.markdown(f"**Alpha:** {alpha_q}")
         speak_text(alpha_q, voice="alpha")
 
         time.sleep(0.5)
@@ -264,18 +254,14 @@ def start_ai_podcast():
         messages.append(AIMessage(content=ai_response))
 
         beta_placeholder = st.empty()
-        beta_placeholder.markdown("")
-        for i in range(len(ai_response)):
-            beta_placeholder.markdown(f"**Beta:** {ai_response[:i+1]}")
-            time.sleep(0.0015)
-
+        beta_placeholder.markdown(f"**Beta:** {ai_response}")
         speak_text(ai_response, voice="beta")
 
         time.sleep(0.5)
 
-        # Alpha reacts or adds commentary
+        # 🎤 Alpha reacts to Beta's answer
         follow_up_prompt = f"""
-        clYou're Alpha, the podcast host. React to Beta’s last answer with a quick, casual comment or follow-up—1 to 2 sentences max. Make it feel natural, as if you're mid-convo in a podcast episode.
+        You're Alpha, the podcast host. React to Beta’s last answer with a quick, casual comment or follow-up—1 to 2 sentences max. Make it feel natural, as if you're mid-convo in a podcast episode.
 
         Beta said: {ai_response}
         """
@@ -283,11 +269,7 @@ def start_ai_podcast():
 
         messages.append(HumanMessage(content=alpha_follow_up))
         alpha_placeholder = st.empty()
-        alpha_placeholder.markdown("")
-
-        for i in range(len(alpha_follow_up)):
-            alpha_placeholder.markdown(f"**Alpha:** {alpha_follow_up[:i+1]}")
-            time.sleep(0.0015)
+        alpha_placeholder.markdown(f"**Alpha:** {alpha_follow_up}")
         speak_text(alpha_follow_up, voice="alpha")
 
         st.markdown("---")
@@ -301,14 +283,10 @@ def start_ai_podcast():
     outro_response = chat_alpha.invoke([HumanMessage(content=outro_prompt)])
     outro = outro_response.content.strip()
 
-    st.markdown("**Alpha:** " + outro)
+    st.markdown(f"**Alpha:** {outro}")
     speak_text(outro, voice="alpha")
-    st.markdown("**Alpha:** " + outro)
-    speak_text(outro, voice="alpha")
-    
 
     update_sidebar()
-
 
 # Function to test AI rephrasing and answering
 def test_ai_rephrasing():
