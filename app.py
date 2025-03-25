@@ -189,7 +189,7 @@ def start_ai_podcast():
         if extracted_text:
             context = extracted_text[:1000]
             question_prompt = f"""
-            Based on this document, generate a short, clear, and direct question that Alpha can ask Beta during a podcast conversation:
+            Based only on the content below, write a short, clear, and direct question (1–2 lines) for a podcast without repeating this instruction or giving any introduction. Just return the question text only.
             {context}
             """
         else:
@@ -235,7 +235,7 @@ def start_ai_podcast():
 
         time.sleep(1)
 
-        # 🧠 Alpha reacts or adds commentary
+        # Alpha reacts or adds commentary
         follow_up_prompt = f"""
         You are Alpha. Give a short (1-2 sentence) commentary or light follow-up to Beta's answer, as if reacting during a podcast.
         Make it sound friendly and podcast-like.
@@ -259,7 +259,7 @@ def start_ai_podcast():
     # 🎉 Wrap-up
     outro = """
     And that’s a wrap for today’s podcast! Huge thanks to Beta for joining me, and thank YOU for listening.
-    Stay curious and keep exploring. Until next time, this is Alpha signing off. 👋
+    Stay curious and keep exploring. Until next time, this is Alpha signing off. 
     """
     speak_text(outro, voice="alpha")
     st.markdown("**Alpha:** " + outro)
