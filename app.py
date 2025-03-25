@@ -222,6 +222,7 @@ def start_ai_podcast():
         """
         response = chat_beta.invoke([SystemMessage(content=beta_prompt)])
         ai_response = response.content.strip() if response else "I'm not sure about that."
+
         messages.append(AIMessage(content=ai_response))
 
         beta_placeholder = st.empty()
@@ -264,6 +265,7 @@ def start_ai_podcast():
     st.markdown("**Alpha:** " + outro)
 
     update_sidebar()
+
 
 # Function to test AI rephrasing and answering
 def test_ai_rephrasing():
