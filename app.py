@@ -222,7 +222,6 @@ def start_ai_podcast():
         """
         response = chat_beta.invoke([SystemMessage(content=beta_prompt)])
         ai_response = response.content.strip() if response else "I'm not sure about that."
-
         messages.append(AIMessage(content=ai_response))
 
         beta_placeholder = st.empty()
