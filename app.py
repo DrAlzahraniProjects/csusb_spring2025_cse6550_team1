@@ -184,122 +184,115 @@ def update_sidebar():
 # AI Podcast Function (Modified to Use Uploaded Document) 
 import time
 
+import time
+
 def start_ai_podcast():
     st.markdown("## 🎙️ Welcome to the AI Podcast")
 
-    messages.clear()  # Clear past messages
+    messages.clear()
     start_time = time.time()
     max_duration = 180  # 3 minutes
 
-    # 🧠 Alpha starts the podcast with an intro
-    intro_prompt = """
-    You're Alpha, the podcast host. Generate a friendly, welcoming podcast **intro** (3-5 sentences) that:
-    - Greets the audience.
-    - Introduces yourself as Alpha.
-    - Mentions that the podcast will be a discussion based on an uploaded document—without naming it.
-    - Welcomes your guest, Beta, the AI assistant.
+    # ⏱ Time left helper
+    def time_left():
+        return max_duration - (time.time() - start_time)
 
-    Don't say things like '[insert topic]' or '[podcast name]'. Keep it casual and fun, like you're just starting a chill podcast chat.
+    # 📊 Show live countdown timer in sidebar
+    with st.sidebar:
+        time_display = st.empty()
+
+    # 🎙️ Alpha intro
+    intro_prompt = """
+    You're Alpha, the podcast host. Generate a friendly, welcoming podcast intro (3-5 sentences) that:
+    - Greets the audience
+    - Introduces yourself as Alpha
+    - Mentions that the podcast will be a discussion based on an uploaded document—without naming it
+    - Welcomes your guest, Beta, the AI assistant
+    Keep it casual and fun, like a chill podcast chat.
     """
-    intro_response = chat_alpha.invoke([HumanMessage(content=intro_prompt)])
-    intro = intro_response.content.strip()
+    intro = chat_alpha.invoke([HumanMessage(content=intro_prompt)]).content.strip()
 
     alpha_placeholder = st.empty()
     alpha_placeholder.markdown(f"**Alpha:** {intro}")
-    speak_text(intro, voice="alpha")
+    speak_text(intro, voice="alpha", rate=1.4)
 
     st.markdown("---")
-    time.sleep(2)
+    time.sleep(0.2)
 
     q_num = 0
+    while time_left() > 15:
+        time_display.markdown(f"🕒 **Time left:** {int(time_left())} sec")
 
-    while True:
-        elapsed = time.time() - start_time
-        if elapsed >= max_duration:
-            break  # Stop podcast after 3 minutes
-
+        # Alpha generates question
         if extracted_text:
             context = extracted_text[:1000]
             question_prompt = f"""
-            You're Alpha, a podcast host. Based on the document below, generate a short, clear question (1–2 lines) that you would **say directly to your co-host Beta** during a podcast episode. 
+            You're Alpha, a podcast host. Based on the document below, generate a short, casual podcast-style question (1–2 lines). 
+            Do NOT include explanations—just the question.
 
-            The question should:
-            - Be casual and natural (like a real podcast convo)
-            - NOT include any setup like "here's a question I would ask..."
-            - Just be the question itself, nothing more
-
-            Document content:
+            Document:
             {context}
             """
         else:
-            question_prompt = "Generate a short, clear, and direct question Alpha can ask Beta about CSUSB-related topics."
+            question_prompt = "Generate a short, casual podcast-style question Alpha can ask Beta about CSUSB-related topics."
 
-        messages.append(HumanMessage(content=question_prompt))
-        question_response = chat_alpha.invoke(messages)
-        question = question_response.content.strip() if question_response else "Let's move to the next question."
-        question = question.replace("→", "").replace("Alpha:", "").replace("here is a short question based on the document content:", "").strip()
+        question = chat_alpha.invoke([HumanMessage(content=question_prompt)]).content.strip()
+        question = question.replace("→", "").replace("Alpha:", "").strip()
 
-        # 🎙️ Alpha asks the question
+        # 🎙️ Alpha asks question
         alpha_q = generate_alpha_question_intro(q_num, question)
         alpha_placeholder = st.empty()
         alpha_placeholder.markdown(f"**Alpha:** {alpha_q}")
-        speak_text(alpha_q, voice="alpha")
+        speak_text(alpha_q, voice="alpha", rate=1.4)
 
-        time.sleep(0.5)
-
-        if time.time() - start_time >= max_duration:
+        time.sleep(0.2)
+        if time_left() < 10:
             break
 
-        # 🧠 Beta answers
+        # 🧠 Beta answers briefly
         beta_prompt = f"""
-        You're Beta, a podcast co-host. Answer Alpha’s question based on the document below. Keep it conversational, insightful, and concise—like you're discussing it on a podcast. No technical jargon.
+        You're Beta, a podcast co-host. Respond to Alpha’s question using the document below. Your answer should be short and natural: no more than 2-3 lines.
 
-        Document content:
+        Document:
         {extracted_text[:1000]}
-        Alpha asked: {question}
+        Question:
+        {question}
         """
-        response = chat_beta.invoke([SystemMessage(content=beta_prompt)])
-        ai_response = response.content.strip() if response else "I'm not sure about that."
-
+        ai_response = chat_beta.invoke([SystemMessage(content=beta_prompt)]).content.strip()
         messages.append(AIMessage(content=ai_response))
+
         beta_placeholder = st.empty()
         beta_placeholder.markdown(f"**Beta:** {ai_response}")
-        speak_text(ai_response, voice="beta")
+        speak_text(ai_response, voice="beta", rate=1.4)
 
-        time.sleep(0.5)
-
-        if time.time() - start_time >= max_duration:
+        time.sleep(0.2)
+        if time_left() < 10:
             break
 
         # 🎤 Alpha follow-up
         follow_up_prompt = f"""
-        You're Alpha, the podcast host. React to Beta’s last answer with a quick, casual comment or follow-up—1 to 2 sentences max. Make it feel natural, as if you're mid-convo in a podcast episode.
+        You're Alpha, the podcast host. React briefly (1 casual sentence) to Beta’s answer.
 
         Beta said: {ai_response}
         """
         alpha_follow_up = chat_alpha.invoke([HumanMessage(content=follow_up_prompt)]).content.strip()
-
         messages.append(HumanMessage(content=alpha_follow_up))
+
         alpha_placeholder = st.empty()
         alpha_placeholder.markdown(f"**Alpha:** {alpha_follow_up}")
-        speak_text(alpha_follow_up, voice="alpha")
+        speak_text(alpha_follow_up, voice="alpha", rate=1.4)
 
         st.markdown("---")
-        time.sleep(1)
-
+        time.sleep(0.2)
         q_num += 1
 
-    # 🎉 Wrap-up
+    # 🎉 Outro
     outro_prompt = """
-    You're Alpha, the podcast host. Generate a short **outro** (3-4 sentences) to wrap up the show. Thank the guest (Beta) and the audience, and give a cheerful goodbye. Keep it light and friendly, like a real podcast host.
+    You're Alpha, the podcast host. End the podcast with a short outro (3-4 sentences), thanking Beta and the audience in a friendly tone.
     """
-    outro_response = chat_alpha.invoke([HumanMessage(content=outro_prompt)])
-    outro = outro_response.content.strip()
-
+    outro = chat_alpha.invoke([HumanMessage(content=outro_prompt)]).content.strip()
     st.markdown(f"**Alpha:** {outro}")
-    speak_text(outro, voice="alpha")
-
-    update_sidebar()
+    speak_text(outro, voice="alpha", rate=1.4)
 
 # Function to test AI rephrasing and answering
 def test_ai_rephrasing():
