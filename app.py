@@ -183,9 +183,6 @@ def update_sidebar():
 
 # AI Podcast Function (Modified to Use Uploaded Document) 
 import time
-
-import time
-
 def start_ai_podcast():
     st.markdown("## 🎙️ Welcome to the AI Podcast")
 
@@ -214,7 +211,7 @@ def start_ai_podcast():
 
     alpha_placeholder = st.empty()
     alpha_placeholder.markdown(f"**Alpha:** {intro}")
-    speak_text(intro, voice="alpha", rate=1.4)
+    speak_text(intro, voice="alpha")  # ⬅️ removed rate
 
     st.markdown("---")
     time.sleep(0.2)
@@ -243,7 +240,7 @@ def start_ai_podcast():
         alpha_q = generate_alpha_question_intro(q_num, question)
         alpha_placeholder = st.empty()
         alpha_placeholder.markdown(f"**Alpha:** {alpha_q}")
-        speak_text(alpha_q, voice="alpha", rate=1.4)
+        speak_text(alpha_q, voice="alpha")  # ⬅️ removed rate
 
         time.sleep(0.2)
         if time_left() < 10:
@@ -263,7 +260,7 @@ def start_ai_podcast():
 
         beta_placeholder = st.empty()
         beta_placeholder.markdown(f"**Beta:** {ai_response}")
-        speak_text(ai_response, voice="beta", rate=1.4)
+        speak_text(ai_response, voice="beta")  # ⬅️ removed rate
 
         time.sleep(0.2)
         if time_left() < 10:
@@ -280,7 +277,7 @@ def start_ai_podcast():
 
         alpha_placeholder = st.empty()
         alpha_placeholder.markdown(f"**Alpha:** {alpha_follow_up}")
-        speak_text(alpha_follow_up, voice="alpha", rate=1.4)
+        speak_text(alpha_follow_up, voice="alpha")  # ⬅️ removed rate
 
         st.markdown("---")
         time.sleep(0.2)
@@ -292,7 +289,7 @@ def start_ai_podcast():
     """
     outro = chat_alpha.invoke([HumanMessage(content=outro_prompt)]).content.strip()
     st.markdown(f"**Alpha:** {outro}")
-    speak_text(outro, voice="alpha", rate=1.4)
+    speak_text(outro, voice="alpha")  # ⬅️ removed rate
 
 # Function to test AI rephrasing and answering
 def test_ai_rephrasing():
