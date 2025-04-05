@@ -183,22 +183,20 @@ def update_sidebar():
 
 # AI Podcast Function (Modified to Use Uploaded Document) 
 import time
+import time
+
 def start_ai_podcast():
     st.markdown("## 🎙️ Welcome to the AI Podcast")
 
     messages.clear()
     start_time = time.time()
-    max_duration = 180  # 3 minutes
+    max_duration = 180  # Total duration: 3 minutes
 
-    # ⏱ Time left helper
+    # ⏱ Helper to check remaining time
     def time_left():
         return max_duration - (time.time() - start_time)
 
-    # 📊 Show live countdown timer in sidebar
-    with st.sidebar:
-        time_display = st.empty()
-
-    # 🎙️ Alpha intro
+    # 🎙️ Alpha's intro
     intro_prompt = """
     You're Alpha, the podcast host. Generate a friendly, welcoming podcast intro (3-5 sentences) that:
     - Greets the audience
@@ -208,19 +206,20 @@ def start_ai_podcast():
     Keep it casual and fun, like a chill podcast chat.
     """
     intro = chat_alpha.invoke([HumanMessage(content=intro_prompt)]).content.strip()
-
     alpha_placeholder = st.empty()
     alpha_placeholder.markdown(f"**Alpha:** {intro}")
-    speak_text(intro, voice="alpha")  # ⬅️ removed rate
+    speak_text(intro, voice="alpha")
 
     st.markdown("---")
     time.sleep(0.2)
 
     q_num = 0
-    while time_left() > 15:
-        time_display.markdown(f"🕒 **Time left:** {int(time_left())} sec")
+    while time_left() > 15:  # Save 15 seconds for outro
+        # ⏰ Stop early if time is almost up
+        if time_left() < 15:
+            break
 
-        # Alpha generates question
+        # 💬 Alpha generates a question
         if extracted_text:
             context = extracted_text[:1000]
             question_prompt = f"""
@@ -236,17 +235,17 @@ def start_ai_podcast():
         question = chat_alpha.invoke([HumanMessage(content=question_prompt)]).content.strip()
         question = question.replace("→", "").replace("Alpha:", "").strip()
 
-        # 🎙️ Alpha asks question
+        # 🎙️ Alpha asks the question
         alpha_q = generate_alpha_question_intro(q_num, question)
         alpha_placeholder = st.empty()
         alpha_placeholder.markdown(f"**Alpha:** {alpha_q}")
-        speak_text(alpha_q, voice="alpha")  # ⬅️ removed rate
+        speak_text(alpha_q, voice="alpha")
 
         time.sleep(0.2)
         if time_left() < 10:
             break
 
-        # 🧠 Beta answers briefly
+        # 🧠 Beta responds shortly
         beta_prompt = f"""
         You're Beta, a podcast co-host. Respond to Alpha’s question using the document below. Your answer should be short and natural: no more than 2-3 lines.
 
@@ -260,7 +259,7 @@ def start_ai_podcast():
 
         beta_placeholder = st.empty()
         beta_placeholder.markdown(f"**Beta:** {ai_response}")
-        speak_text(ai_response, voice="beta")  # ⬅️ removed rate
+        speak_text(ai_response, voice="beta")
 
         time.sleep(0.2)
         if time_left() < 10:
@@ -277,7 +276,7 @@ def start_ai_podcast():
 
         alpha_placeholder = st.empty()
         alpha_placeholder.markdown(f"**Alpha:** {alpha_follow_up}")
-        speak_text(alpha_follow_up, voice="alpha")  # ⬅️ removed rate
+        speak_text(alpha_follow_up, voice="alpha")
 
         st.markdown("---")
         time.sleep(0.2)
@@ -289,7 +288,7 @@ def start_ai_podcast():
     """
     outro = chat_alpha.invoke([HumanMessage(content=outro_prompt)]).content.strip()
     st.markdown(f"**Alpha:** {outro}")
-    speak_text(outro, voice="alpha")  # ⬅️ removed rate
+    speak_text(outro, voice="alpha")
 
 # Function to test AI rephrasing and answering
 def test_ai_rephrasing():
