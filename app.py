@@ -292,13 +292,13 @@ def start_ai_podcast():
 if uploaded_file:
     current_time = datetime.now()
 
-    # ⛔ Block if last podcast was completed less than 5 minutes ago
+    # ⛔ Block if last podcast was completed less than 2 minutes ago
     if (
         "last_upload_time" in st.session_state and
         st.session_state["last_upload_time"] is not None and
         current_time - st.session_state["last_upload_time"] < timedelta(minutes=5)
     ):
-        wait_time = timedelta(minutes=5) - (current_time - st.session_state["last_upload_time"])
+        wait_time = timedelta(minutes=2) - (current_time - st.session_state["last_upload_time"])
         st.warning(f"⚠️ Please wait {int(wait_time.total_seconds() // 60)} min {int(wait_time.total_seconds() % 60)} sec before uploading another file.")
         uploaded_file = None  # Ignore this file
     elif uploaded_file.size > 10 * 1024 * 1024:
