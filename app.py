@@ -10,6 +10,7 @@ import time
 from streamlit_TTS import auto_play, text_to_audio  # ✅ Using streamlit-tts for real-time playback
 from gtts.lang import tts_langs  # ✅ Importing available languages from gTTS
 import random
+from datetime import datetime, timedelta  
 
 def generate_alpha_question_intro(q_num, question):
     if q_num == 0:
@@ -30,40 +31,31 @@ def generate_alpha_question_intro(q_num, question):
         ]
     return random.choice(starters) + question
 
-# ✅ Function to Speak Text (Both Alpha & Beta Speak)
 def speak_text(text, voice):
-    # Set language/accent based on the voice
-    language = "en" if voice == "alpha" else "en"  # Alpha uses US English, Beta uses British English
-    # Generate audio for the text
+    language = "en" if voice == "alpha" else "en"
     audio = text_to_audio(text, language=language)
-    # Play the audio in the browser
     auto_play(audio)
 
-# ✅ Update Streamlit App Header (Title, Icon, and Layout)
 st.set_page_config(
     page_title="CSUSB Study Podcast",
     page_icon="logo/csusb_logo.png",
 )
 
-# Load custom CSS
 st.markdown(
     """
     <style>
     div[data-testid="stFileUploader"] div[aria-live="polite"] {
         display: none !important;
     }
-
     .stButton button {
         width: 100%;
     }
-
     .submit-button-container {
         display: flex;
         align-items: flex-end;
         padding-bottom: 0 !important;
         margin-bottom: 0 !important;
     }
-
     .stTextInput > div > div > input {
         padding-bottom: 0 !important;
     }
@@ -72,34 +64,28 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Header Section
-col1, col2, col3 = st.columns([1, 3, 1])  # Creates three equal columns for centering
-
-with col2:  # Center content in the middle column
-    col_img, col_text = st.columns([0.2, 1])  # Adjust spacing between logo & title
+col1, col2, col3 = st.columns([1, 3, 1])
+with col2:
+    col_img, col_text = st.columns([0.2, 1])
     with col_img:
-        st.image("logo/csusb_logo.png", width=60)  # ✅ Local image method
-
+        st.image("logo/csusb_logo.png", width=60)
     with col_text:
         st.markdown(
             "<h3 style='font-size: 22px; margin: 0px;'>CSUSB Study Podcast Assistant</h3>",
             unsafe_allow_html=True
         )
-        
-# Initialize API key
+
 apik = os.getenv("GROQ_API_KEY")
 if not apik:
     st.error("Error: Please set your GROQ_API_Key variable.")
     st.stop()
-    
-# Initialize two different Llama3 models
-chat_alpha = init_chat_model("llama3-8b-8192", model_provider="groq")  # Alpha's model
-chat_beta = init_chat_model("llama3-70b-8192", model_provider="groq")  # Beta's model
+
+chat_alpha = init_chat_model("llama3-8b-8192", model_provider="groq")
+chat_beta = init_chat_model("llama3-70b-8192", model_provider="groq")
 messages = [SystemMessage(content="You are an AI assistant that will help.")]
 
 recognizer = sr.Recognizer()
 
-# Function to listen to microphone input
 def listen_to_microphone():
     with sr.Microphone() as source:
         recognizer.adjust_for_ambient_noise(source)
@@ -111,13 +97,65 @@ def listen_to_microphone():
         except sr.RequestError:
             return "Sorry, I'm unable to process the request at the moment."
 
-
-# Ensure session state is initialized
 if "podcast_started" not in st.session_state:
     st.session_state["podcast_started"] = False
 
 if "conf_matrix" not in st.session_state:
     st.session_state.conf_matrix = np.array([[0, 0], [0, 0]])
+
+if "last_upload_time" not in st.session_state:  
+    st.session_state["last_upload_time"] = None  
+
+def extract_text_from_pdf(pdf_file):
+    try:
+        pdf_reader = PyPDF2.PdfReader(pdf_file)
+        return "".join([page.extract_text() for page in pdf_reader.pages])
+    except Exception as e:
+        return f"Error extracting PDF text: {str(e)}"
+
+uploaded_file = st.file_uploader("Upload a PDF document (Max: 10MB)", type=["pdf"])
+
+if uploaded_file:
+    current_time = datetime.now()  
+    if (
+        st.session_state["last_upload_time"] is not None and  
+        current_time - st.session_state["last_upload_time"] < timedelta(minutes=5)  
+    ):
+        st.warning("⚠️ Server is busy. Please wait 5 minutes before uploading another file.")  
+        uploaded_file = None  
+    elif uploaded_file.size > 10 * 1024 * 1024:
+        st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
+        uploaded_file = None
+    else:
+        extracted_text = extract_text_from_pdf(uploaded_file)
+        st.session_state["last_upload_time"] = current_time  
+if 'conf_matrix' not in st.session_state:
+    st.session_state.conf_matrix = np.array([[0, 0], [0, 0]])
+
+# Extract text from PDF
+def extract_text_from_pdf(pdf_file):
+    try:
+        pdf_reader = PyPDF2.PdfReader(pdf_file)
+        return "".join([page.extract_text() for page in pdf_reader.pages])
+    except Exception as e:
+        return f"Error extracting PDF text: {str(e)}"
+
+# File Upload Section (PDF Only, Max 10MB)
+uploaded_file = st.file_uploader("Upload a PDF document (Max: 10MB)", type=["pdf"])
+
+if uploaded_file:
+    if uploaded_file.size > 10 * 1024 * 1024:  # Check if file exceeds 10MB
+        st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
+        uploaded_file = None  # Discard the file
+    else:
+        # Process the PDF
+        extracted_text = extract_text_from_pdf(uploaded_file)
+
+
+# Initialize confusion matrix
+if 'conf_matrix' not in st.session_state:
+    st.session_state.conf_matrix = np.array([[0, 0], [0, 0]])
+
 
 # Extract text from PDF
 def extract_text_from_pdf(pdf_file):
