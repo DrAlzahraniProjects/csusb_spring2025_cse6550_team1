@@ -140,20 +140,21 @@ uploaded_file = st.file_uploader("Upload a PDF document (Max: 10MB)", type=["pdf
 if uploaded_file:
     current_time = datetime.now()
     
-    # Check if 5 minutes have passed since the last upload
+    # ✅ Allow upload if this is the first time (last_upload_time is None)
     if (
         st.session_state["last_upload_time"] is not None and
         current_time - st.session_state["last_upload_time"] < timedelta(minutes=5)
     ):
         st.warning("⚠️ Server is busy. Please wait 5 minutes before uploading another file.")
         uploaded_file = None  # Ignore the file
-    elif uploaded_file.size > 10 * 1024 * 1024:  # Check if file exceeds 10MB
+    elif uploaded_file.size > 10 * 1024 * 1024:
         st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
-        uploaded_file = None  # Discard the file
+        uploaded_file = None
     else:
-        # Process the PDF
+        # ✅ First valid upload or after cooldown
         extracted_text = extract_text_from_pdf(uploaded_file)
         st.session_state["last_upload_time"] = current_time
+
 
 
 # Initialize confusion matrix
