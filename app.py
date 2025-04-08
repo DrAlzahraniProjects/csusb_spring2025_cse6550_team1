@@ -137,33 +137,6 @@ def extract_text_from_pdf(pdf_file):
 # File Upload Section (PDF Only, Max 10MB)
 uploaded_file = st.file_uploader("Upload a PDF document (Max: 10MB)", type=["pdf"])
 
-from datetime import datetime, timedelta
-
-if uploaded_file:
-    current_time = datetime.now()
-
-    # ⛔ Block if last podcast was completed less than 5 minutes ago
-    if (
-        "last_upload_time" in st.session_state and
-        st.session_state["last_upload_time"] is not None and
-        current_time - st.session_state["last_upload_time"] < timedelta(minutes=5)
-    ):
-        wait_time = timedelta(minutes=5) - (current_time - st.session_state["last_upload_time"])
-        st.warning(f"⚠️ Please wait {int(wait_time.total_seconds() // 60)} min {int(wait_time.total_seconds() % 60)} sec before uploading another file.")
-        uploaded_file = None  # Ignore this file
-    elif uploaded_file.size > 10 * 1024 * 1024:
-        st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
-        uploaded_file = None
-    else:
-        # ✅ Valid upload, process it
-        extracted_text = extract_text_from_pdf(uploaded_file)
-
-        # 🧠 Start podcast right after upload
-        start_ai_podcast()
-
-        # ⏱ Save upload time AFTER podcast finishes
-        st.session_state["last_upload_time"] = datetime.now()
-
 
 # Initialize confusion matrix
 if 'conf_matrix' not in st.session_state:
@@ -314,7 +287,33 @@ def start_ai_podcast():
     outro = chat_alpha.invoke([HumanMessage(content=outro_prompt)]).content.strip()
     st.markdown(f"**Alpha:** {outro}")
     speak_text(outro, voice="alpha")
-    
+
+
+if uploaded_file:
+    current_time = datetime.now()
+
+    # ⛔ Block if last podcast was completed less than 5 minutes ago
+    if (
+        "last_upload_time" in st.session_state and
+        st.session_state["last_upload_time"] is not None and
+        current_time - st.session_state["last_upload_time"] < timedelta(minutes=5)
+    ):
+        wait_time = timedelta(minutes=5) - (current_time - st.session_state["last_upload_time"])
+        st.warning(f"⚠️ Please wait {int(wait_time.total_seconds() // 60)} min {int(wait_time.total_seconds() % 60)} sec before uploading another file.")
+        uploaded_file = None  # Ignore this file
+    elif uploaded_file.size > 10 * 1024 * 1024:
+        st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
+        uploaded_file = None
+    else:
+        # ✅ Valid upload, process it
+        extracted_text = extract_text_from_pdf(uploaded_file)
+
+        # 🧠 Start podcast right after upload
+        start_ai_podcast()
+
+        # ⏱ Save upload time AFTER podcast finishes
+        st.session_state["last_upload_time"] = datetime.now()
+
 # Function to test AI rephrasing and answering
 def test_ai_rephrasing():
     test_questions = [
