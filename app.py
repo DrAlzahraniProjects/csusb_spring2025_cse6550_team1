@@ -137,24 +137,32 @@ def extract_text_from_pdf(pdf_file):
 # File Upload Section (PDF Only, Max 10MB)
 uploaded_file = st.file_uploader("Upload a PDF document (Max: 10MB)", type=["pdf"])
 
+from datetime import datetime, timedelta
+
 if uploaded_file:
     current_time = datetime.now()
-    
-    # ✅ Allow upload if this is the first time (last_upload_time is None)
+
+    # ⛔ Block if last podcast was completed less than 5 minutes ago
     if (
+        "last_upload_time" in st.session_state and
         st.session_state["last_upload_time"] is not None and
         current_time - st.session_state["last_upload_time"] < timedelta(minutes=5)
     ):
-        st.warning("⚠️ Server is busy. Please wait 5 minutes before uploading another file.")
-        uploaded_file = None  # Ignore the file
+        wait_time = timedelta(minutes=5) - (current_time - st.session_state["last_upload_time"])
+        st.warning(f"⚠️ Please wait {int(wait_time.total_seconds() // 60)} min {int(wait_time.total_seconds() % 60)} sec before uploading another file.")
+        uploaded_file = None  # Ignore this file
     elif uploaded_file.size > 10 * 1024 * 1024:
         st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
         uploaded_file = None
     else:
-        # ✅ First valid upload or after cooldown
+        # ✅ Valid upload, process it
         extracted_text = extract_text_from_pdf(uploaded_file)
-        st.session_state["last_upload_time"] = current_time
 
+        # 🧠 Start podcast right after upload
+        start_ai_podcast()
+
+        # ⏱ Save upload time AFTER podcast finishes
+        st.session_state["last_upload_time"] = datetime.now()
 
 
 # Initialize confusion matrix
