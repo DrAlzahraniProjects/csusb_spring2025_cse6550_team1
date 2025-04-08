@@ -201,7 +201,6 @@ def update_sidebar():
 
 # AI Podcast Function (Modified to Use Uploaded Document) 
 import time
-import time
 
 def start_ai_podcast():
     st.markdown("## 🎙️ Welcome to the AI Podcast")
@@ -307,7 +306,7 @@ def start_ai_podcast():
     outro = chat_alpha.invoke([HumanMessage(content=outro_prompt)]).content.strip()
     st.markdown(f"**Alpha:** {outro}")
     speak_text(outro, voice="alpha")
-
+    
 # Function to test AI rephrasing and answering
 def test_ai_rephrasing():
     test_questions = [
