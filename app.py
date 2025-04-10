@@ -11,6 +11,22 @@ from streamlit_TTS import auto_play, text_to_audio  # ✅ Using streamlit-tts fo
 from gtts.lang import tts_langs  # ✅ Importing available languages from gTTS
 import random
 from datetime import datetime, timedelta
+import requests
+
+def get_user_ip_ad():
+     try:
+         # As Streamlit is running ping ipify's api to get the users ip address
+         response = requests.get('https://api.ipify.org?format=json', timeout=2)
+         return response.json().get("ip", "")
+     except Exception:
+         return ""
+ 
+def is_csusb(ip):
+     return any([
+         ip.startswith("138.23."),
+         ip.startswith("139.182.")
+     ])
+
 
 def generate_alpha_question_intro(q_num, question):
     if q_num == 0:
@@ -388,6 +404,13 @@ def test_ai_rephrasing():
       
 # Create three buttons in separate columns above the text input box
 col1, col2, col3 = st.columns(3)
+
+user_ip = get_user_ip_ad()
+if not is_csusb_ip(user_ip):
+    st.warning(f"Access denied")
+    st.stop()
+ 
+
 
 with col1:
     if st.button(":material/voice_chat: Start AI Podcast", key="start_podcast_button_1"):
