@@ -406,7 +406,7 @@ def test_ai_rephrasing():
 col1, col2, col3 = st.columns(3)
 
 user_ip = get_user_ip_ad()
-if not is_csusb_ip(user_ip):
+if not is_csusb(user_ip):
     st.warning(f"Access denied")
     st.stop()
  
