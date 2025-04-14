@@ -1,5 +1,4 @@
 import streamlit as st
-import speech_recognition as sr
 import os
 import pandas as pd
 import numpy as np
@@ -7,15 +6,63 @@ from langchain.chat_models import init_chat_model
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
 import PyPDF2
 import time
-from streamlit_TTS import auto_play, text_to_audio  # ✅ Using streamlit-tts for real-time playback
-from gtts.lang import tts_langs  # ✅ Importing available languages from gTTS
 import random
 from datetime import datetime, timedelta
 import requests
+import tempfile
+import edge_tts  # ✅ Edge TTS
+import asyncio
+import base64
+import time
+import tempfile
+import asyncio
+
+try:
+    from mutagen.mp3 import MP3
+    mutagen_available = True
+except ImportError:
+    mutagen_available = False
+
+def speak_text(text, voice="alpha"):
+    voice_map = {
+        "alpha": "en-US-JennyNeural",
+        "beta": "en-GB-RyanNeural",
+    }
+    real_voice = voice_map.get(voice, "en-US-JennyNeural")
+
+    async def run_tts():
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmpfile:
+            communicate = edge_tts.Communicate(text, real_voice)
+            await communicate.save(tmpfile.name)
+
+            with open(tmpfile.name, "rb") as audio_file:
+                audio_bytes = audio_file.read()
+                b64_audio = base64.b64encode(audio_bytes).decode()
+
+            st.markdown(f"""
+                <audio autoplay>
+                    <source src="data:audio/mp3;base64,{b64_audio}" type="audio/mp3">
+                </audio>
+            """, unsafe_allow_html=True)
+
+            # Estimate or get actual duration
+            duration = get_mp3_duration(tmpfile.name, text)
+            time.sleep(duration)
+
+    asyncio.run(run_tts())
+
+def get_mp3_duration(file_path, text):
+    if mutagen_available:
+        audio = MP3(file_path)
+        return audio.info.length
+    else:
+        # Basic estimate: ~2.5 words per second
+        words = len(text.split())
+        return max(words / 2.5, 2)  # minimum 2 seconds just in case
+
 
 def get_user_ip_ad():
      try:
-         # As Streamlit is running ping ipify's api to get the users ip address
          response = requests.get('https://api.ipify.org?format=json', timeout=2)
          return response.json().get("ip", "")
      except Exception:
@@ -26,7 +73,6 @@ def is_csusb(ip):
          ip.startswith("138.23."),
          ip.startswith("139.182.")
      ])
-
 
 def generate_alpha_question_intro(q_num, question):
     if q_num == 0:
@@ -47,100 +93,54 @@ def generate_alpha_question_intro(q_num, question):
         ]
     return random.choice(starters) + question
 
-# ✅ Function to Speak Text (Both Alpha & Beta Speak)
-def speak_text(text, voice):
-    # Set language/accent based on the voice
-    language = "en" if voice == "alpha" else "en"  # Alpha uses US English, Beta uses British English
-    # Generate audio for the text
-    audio = text_to_audio(text, language=language)
-    # Play the audio in the browser
-    auto_play(audio)
-
-# ✅ Update Streamlit App Header (Title, Icon, and Layout)
 st.set_page_config(
     page_title="CSUSB Study Podcast",
     page_icon="logo/csusb_logo.png",
 )
 
-# Load custom CSS
-st.markdown(
-    """
-    <style>
-    div[data-testid="stFileUploader"] div[aria-live="polite"] {
-        display: none !important;
-    }
+# Custom CSS
+st.markdown("""
+<style>
+div[data-testid="stFileUploader"] div[aria-live="polite"] {
+    display: none !important;
+}
+.stButton button { width: 100%; }
+.submit-button-container {
+    display: flex;
+    align-items: flex-end;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+}
+.stTextInput > div > div > input {
+    padding-bottom: 0 !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
-    .stButton button {
-        width: 100%;
-    }
-
-    .submit-button-container {
-        display: flex;
-        align-items: flex-end;
-        padding-bottom: 0 !important;
-        margin-bottom: 0 !important;
-    }
-
-    .stTextInput > div > div > input {
-        padding-bottom: 0 !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# Header Section
-col1, col2, col3 = st.columns([1, 3, 1])  # Creates three equal columns for centering
-
-with col2:  # Center content in the middle column
-    col_img, col_text = st.columns([0.2, 1])  # Adjust spacing between logo & title
+col1, col2, col3 = st.columns([1, 3, 1])
+with col2:
+    col_img, col_text = st.columns([0.2, 1])
     with col_img:
-        st.image("logo/csusb_logo.png", width=60)  # ✅ Local image method
-
+        st.image("logo/csusb_logo.png", width=60)
     with col_text:
-        st.markdown(
-            "<h3 style='font-size: 22px; margin: 0px;'>CSUSB Study Podcast Assistant</h3>",
-            unsafe_allow_html=True
-        )
-        
-# Initialize API key
+        st.markdown("<h3 style='font-size: 22px; margin: 0px;'>CSUSB Study Podcast Assistant</h3>", unsafe_allow_html=True)
+
 apik = os.getenv("GROQ_API_KEY")
 if not apik:
     st.error("Error: Please set your GROQ_API_Key variable.")
     st.stop()
-    
-# Initialize two different Llama3 models
-chat_alpha = init_chat_model("llama3-8b-8192", model_provider="groq")  # Alpha's model
-chat_beta = init_chat_model("llama3-70b-8192", model_provider="groq")  # Beta's model
+
+chat_alpha = init_chat_model("llama3-8b-8192", model_provider="groq")
+chat_beta = init_chat_model("llama3-70b-8192", model_provider="groq")
 messages = [SystemMessage(content="You are an AI assistant that will help.")]
 
-recognizer = sr.Recognizer()
-
-# Function to listen to microphone input
-def listen_to_microphone():
-    with sr.Microphone() as source:
-        recognizer.adjust_for_ambient_noise(source)
-        audio = recognizer.listen(source)
-        try:
-            return recognizer.recognize_google(audio).lower()
-        except sr.UnknownValueError:
-            return "Sorry, I couldn't understand that."
-        except sr.RequestError:
-            return "Sorry, I'm unable to process the request at the moment."
-
-
-# Ensure session state is initialized
 if "podcast_started" not in st.session_state:
     st.session_state["podcast_started"] = False
-
 if "conf_matrix" not in st.session_state:
     st.session_state.conf_matrix = np.array([[0, 0], [0, 0]])
-
-# Initialize session variable if not set
 if "last_upload_time" not in st.session_state:
     st.session_state["last_upload_time"] = None
 
-# Extract text from PDF
 def extract_text_from_pdf(pdf_file):
     try:
         pdf_reader = PyPDF2.PdfReader(pdf_file)
@@ -148,18 +148,20 @@ def extract_text_from_pdf(pdf_file):
     except Exception as e:
         return f"Error extracting PDF text: {str(e)}"
 
+uploaded_file = None
+user_ip = get_user_ip_ad()
 
 
-# File Upload Section (PDF Only, Max 10MB)
-uploaded_file = st.file_uploader("Upload a PDF document (Max: 10MB)", type=["pdf"])
+if not is_csusb(user_ip):
+    st.warning("Access denied")
+    st.stop()
+else:
+    uploaded_file = st.file_uploader("Upload a PDF document (Max: 10MB)", type=["pdf"])
 
 
-# Initialize confusion matrix
 if 'conf_matrix' not in st.session_state:
     st.session_state.conf_matrix = np.array([[0, 0], [0, 0]])
 
-
-# ✅ Function to Display Confusion Matrix & Model Metrics
 def update_sidebar():
     with st.sidebar:
         st.markdown("### Confusion Matrix")
@@ -167,11 +169,9 @@ def update_sidebar():
                               columns=["Answered Correctly", "Not Answered"],
                               index=["Actual Yes", "Actual No"]))
 
-        # ✅ Extract and Display Updated Model Metrics
-        tp = st.session_state.conf_matrix[0, 0]  # True Positives
-        fn = st.session_state.conf_matrix[1, 0]  # False Negatives
-        fp = st.session_state.conf_matrix[0, 1] if 0 in st.session_state.conf_matrix.shape else 0  # False Positives
-        tn = st.session_state.conf_matrix[1, 1] if 1 in st.session_state.conf_matrix.shape else 0  # True Negatives
+        tp, fn = st.session_state.conf_matrix[0, 0], st.session_state.conf_matrix[1, 0]
+        fp = st.session_state.conf_matrix[0, 1] if 0 in st.session_state.conf_matrix.shape else 0
+        tn = st.session_state.conf_matrix[1, 1] if 1 in st.session_state.conf_matrix.shape else 0
 
         total = tp + tn + fp + fn
         model_accuracy = ((tp + tn) / total) * 100 if total > 0 else 0
@@ -179,9 +179,7 @@ def update_sidebar():
         recall = (tp / (tp + fn)) * 100 if (tp + fn) > 0 else 0
         f1_score = (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
         specificity = (tn / (tn + fp)) * 100 if (tn + fp) > 0 else 0
-        sensitivity = recall  # Sensitivity is the same as recall
 
-        # ✅ Display Updated Model Metrics in Sidebar
         st.markdown("### Model Metrics")
         st.write(f"**Model Accuracy:** {model_accuracy:.2f}%")
         st.write(f"**Precision:** {precision:.2f}%")
@@ -189,12 +187,11 @@ def update_sidebar():
         st.write(f"**Specificity:** {specificity:.2f}%")
         st.write(f"**F1 Score:** {f1_score:.2f}%")
 
-        # ✅ Reset Button to Clear Confusion Matrix and Model Metrics
         if st.button("🔄 Reset Metrics", key="reset_button"):
             st.session_state.conf_matrix = np.array([[0, 0], [0, 0]])
             st.session_state["podcast_started"] = False
             st.success("Confusion Matrix & Model Metrics Reset!")
-            st.experimental_rerun()  # Force UI refresh
+            st.experimental_rerun()
 
 # AI Podcast Function (Modified to Use Uploaded Document) 
 import time
@@ -206,80 +203,82 @@ def start_ai_podcast():
     start_time = time.time()
     max_duration = 180  # Total duration: 3 minutes
 
-    # ⏱ Helper to check remaining time
+    # Load PDF chunks by page for question variety
+    from PyPDF2 import PdfReader
+    try:
+        reader = PdfReader(uploaded_file)
+        chunks = [page.extract_text() or "" for page in reader.pages if page.extract_text()]
+    except Exception as e:
+        st.error(f"Failed to extract document chunks: {e}")
+        return
+
+    if not chunks:
+        st.warning("No readable content found in the uploaded PDF.")
+        return
+
+    chunk_index = 0
+
     def time_left():
         return max_duration - (time.time() - start_time)
 
-    # 🎙️ Alpha's intro
+    # Alpha's short intro
     intro_prompt = """
-    You're Alpha, the podcast host. Generate a friendly, welcoming podcast intro (3-5 sentences) that:
+    You're Alpha, the podcast host. Generate a short and friendly podcast intro (1–2 sentences max) that:
     - Greets the audience
     - Introduces yourself as Alpha
-    - Mentions that the podcast will be a discussion based on an uploaded document—without naming it
-    - Welcomes your guest, Beta, the AI assistant
-    Keep it casual and fun, like a chill podcast chat.
+    - Says you're discussing something interesting with Beta (no placeholder text like 'Insert Topic Name')
+    Keep it casual and fun, like a real chill podcast.
     """
     intro = chat_alpha.invoke([HumanMessage(content=intro_prompt)]).content.strip()
-    alpha_placeholder = st.empty()
-    alpha_placeholder.markdown(f"**Alpha:** {intro}")
+    st.markdown(f"**Alpha:** {intro}")
     speak_text(intro, voice="alpha")
 
     st.markdown("---")
     time.sleep(0.2)
 
     q_num = 0
-    while time_left() > 15:  # Save 15 seconds for outro
-        # ⏰ Stop early if time is almost up
+    while time_left() > 15:
         if time_left() < 15:
             break
 
-        # 💬 Alpha generates a question
-        if extracted_text:
-            context = extracted_text[:1000]
-            question_prompt = f"""
-            You're Alpha, a podcast host. Based on the document below, generate a short, casual podcast-style question (1–2 lines). 
-            Do NOT include explanations—just the question.
+        context = chunks[chunk_index][:1000]
 
-            Document:
-            {context}
-            """
-        else:
-            question_prompt = "Generate a short, casual podcast-style question Alpha can ask Beta about CSUSB-related topics."
+        question_prompt = f"""
+        You're Alpha, a podcast host. Based on the document section below, ask Beta a short, casual podcast-style question. Be specific.
 
+        Document:
+        {context}
+        """
         question = chat_alpha.invoke([HumanMessage(content=question_prompt)]).content.strip()
         question = question.replace("→", "").replace("Alpha:", "").strip()
 
-        # 🎙️ Alpha asks the question
         alpha_q = generate_alpha_question_intro(q_num, question)
-        alpha_placeholder = st.empty()
-        alpha_placeholder.markdown(f"**Alpha:** {alpha_q}")
+        st.markdown(f"**Alpha:** {alpha_q}")
         speak_text(alpha_q, voice="alpha")
 
         time.sleep(0.2)
         if time_left() < 10:
             break
 
-        # 🧠 Beta responds shortly
         beta_prompt = f"""
-        You're Beta, a podcast co-host. Respond to Alpha’s question using the document below. Your answer should be short and natural: no more than 2-3 lines.
+        You're Beta, a podcast co-host. Respond to Alpha’s question using ONLY the document section below. If it's not there, say "I don't know." Keep your response brief and natural (2–3 lines).
 
         Document:
-        {extracted_text[:1000]}
+        {context}
+
         Question:
         {question}
         """
         ai_response = chat_beta.invoke([SystemMessage(content=beta_prompt)]).content.strip()
         messages.append(AIMessage(content=ai_response))
 
-        beta_placeholder = st.empty()
-        beta_placeholder.markdown(f"**Beta:** {ai_response}")
+        st.markdown(f"**Beta:** {ai_response}")
         speak_text(ai_response, voice="beta")
 
         time.sleep(0.2)
         if time_left() < 10:
             break
 
-        # 🎤 Alpha follow-up
         follow_up_prompt = f"""
         You're Alpha, the podcast host. React briefly (1 casual sentence) to Beta’s answer.
 
@@ -288,15 +287,14 @@ def start_ai_podcast():
         alpha_follow_up = chat_alpha.invoke([HumanMessage(content=follow_up_prompt)]).content.strip()
         messages.append(HumanMessage(content=alpha_follow_up))
 
-        alpha_placeholder = st.empty()
-        alpha_placeholder.markdown(f"**Alpha:** {alpha_follow_up}")
+        st.markdown(f"**Alpha:** {alpha_follow_up}")
         speak_text(alpha_follow_up, voice="alpha")
 
         st.markdown("---")
         time.sleep(0.2)
         q_num += 1
+        chunk_index = (chunk_index + 1) % len(chunks)
 
-    # 🎉 Outro
     outro_prompt = """
     You're Alpha, the podcast host. End the podcast with a short outro (3-4 sentences), thanking Beta and the audience in a friendly tone.
     """
@@ -332,66 +330,59 @@ if uploaded_file:
 
 # Function to test AI rephrasing and answering
 def test_ai_rephrasing():
-    test_questions = [
-        "What CSUSB class assists with creating a podcast?",
-        "Who is the current president of CSUSB?",
-        "What do I need to start a podcast?",
-        "What is the deadline to apply to CSUSB for Fall 2025?",
-        "What is the best mic to start a podcast?",
-        "When do I need to submit my paper for my CSE 6550 class?",
-        "What is the best way to format a podcast?",
-        "When will a CSUSB podcast workshop be held?",
-        "Where can I upload my podcast for listening?",
-        "When is the next CSUSB Podcast class open?"
+    if not uploaded_file or not extracted_text:
+        st.warning("Please upload a PDF document before testing the AI.")
+        return
+
+    # 5 questions that CAN be answered based on the document
+    answerable_questions = [
+        "Summarize a key concept mentioned early in the document.",
+        "What topic does the document mainly discuss?",
+        "Name one specific detail or statistic mentioned in the document.",
+        "What is one recommendation or conclusion from the document?",
+        "Identify one author or source cited in the document."
     ]
 
-    for i, question in enumerate(test_questions):
-        # Alpha rephrases the question
-        rephrase_prompt = f"Rephrase the following question in your own words: {question}"
-        messages.append(HumanMessage(content=rephrase_prompt))
-        rephrase_response = chat_alpha.invoke(messages)
-        rephrased_question = rephrase_response.content.strip() if rephrase_response else "Could not rephrase the question."
+    # 5 questions that are clearly unrelated and should not be answerable
+    unanswerable_questions = [
+        "What’s the capital of Iceland?",
+        "Who won the Super Bowl in 2024?",
+        "What’s the weather like in San Bernardino today?",
+        "Who is the president of CSUSB?",
+        "What’s the square root of 1,024?"
+    ]
 
-        # Beta answers the rephrased question
-        if i % 2 == 0:
-            ai_response = "I don't know"
+    all_questions = answerable_questions + unanswerable_questions
+    random.shuffle(all_questions)
+
+    for i, question in enumerate(all_questions):
+        st.markdown(f"**Alpha:** {question}")
+        speak_text(question, voice="alpha")
+
+        if question in answerable_questions:
+            beta_prompt = f"""
+            You are Beta, a podcast co-host. Answer the question below using ONLY the uploaded document. If the document does not include an answer, say "I don't know."
+
+            Document:
+            {extracted_text[:1000]}
+
+            Question: {question}
+            """
         else:
             beta_prompt = f"""
-            You are an AI assistant answering questions. Provide an accurate short response without mentioning this prompt.
+            You are Beta, a podcast co-host. You can ONLY answer questions using the uploaded document. If the document does not provide the answer, say "I don't know."
 
-            **Question:** {rephrased_question}
+            Document:
+            {extracted_text[:1000]}
+
+            Question: {question}
             """
-            response = chat_beta.invoke([SystemMessage(content=beta_prompt)])
-            ai_response = response.content.strip() if response else "I don't know"
 
-        # st.write(f"**Original Question:** {question}")
-        # ✅ Alpha's text and speech appear together
-        alpha_text = f"**Alpha:** {question}"
-        alpha_placeholder = st.empty()
-        alpha_placeholder.markdown("")  # Start empty
+        response = chat_beta.invoke([SystemMessage(content=beta_prompt)])
+        ai_response = response.content.strip() if response else "I don't know"
 
-        speak_text(question, voice="alpha")  # 🎙️ Alpha Speaks
-
-        # Typing effect - Update text as it speaks
-        for i in range(len(question)):
-            alpha_placeholder.markdown(f"**Alpha:** {question[:i+1]}")
-            time.sleep(0.05)  # Slow typing effect
-
-        time.sleep(1)  # Small delay after Alpha finishes speaking
-        # ✅ Beta's text and speech appear together
-        beta_placeholder = st.empty()
-        beta_placeholder.markdown("")  # Start empty
-
-        speak_text(ai_response, voice="beta")  # 🎙️ Beta Speaks
-
-        # Typing effect - Update text as it speaks
-        for i in range(len(ai_response)):
-            beta_placeholder.markdown(f"**Beta:** {ai_response[:i+1]}")
-            time.sleep(0.05)  # Slow typing effect
-
-        st.markdown("---")
-
-        time.sleep(2)  # Small delay before the next question
+        st.markdown(f"**Beta:** {ai_response}")
+        speak_text(ai_response, voice="beta")
 
         # Update confusion matrix
         if "I don't know" in ai_response:
@@ -399,7 +390,6 @@ def test_ai_rephrasing():
         else:
             st.session_state.conf_matrix[0, 0] += 1
 
-    # Update Sidebar After Running Test AI
     update_sidebar()
       
 # Create three buttons in separate columns above the text input box
@@ -407,24 +397,18 @@ col1, col2, col3 = st.columns(3)
 
 user_ip = get_user_ip_ad()
 if not is_csusb(user_ip):
-    st.warning(f"Access denied")
+    st.warning("Access denied")
     st.stop()
- 
+else:
+    st.success("✅ Access Granted — Welcome CSUSB User!")
 
 
 with col1:
     if st.button(":material/voice_chat: Start AI Podcast", key="start_podcast_button_1"):
         st.session_state["podcast_started"] = True
 
-with col2:
-    if st.button(":material/mic: Start AI Podcast(Say: Podcast!)", key="start_podcast_voice_command_button"):
-        podcast_command = listen_to_microphone()
-        if "podcast" in podcast_command:
-            st.session_state["podcast_started"] = True
-        else:
-            st.write(f"Command '{podcast_command}' not recognized for podcast start.")
 
-with col3:
+with col2:
     if st.button(":material/bug_report: Test AI", key="test_ai_button"):
         st.session_state["test_ai_clicked"] = True
 

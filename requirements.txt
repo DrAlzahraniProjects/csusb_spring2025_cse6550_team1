@@ -1,10 +1,13 @@
+streamlit
+SpeechRecognition
 langchain.core
 langchain[groq]
-streamlit
 langchain_community
 llama-index
 openai
 PyPDF2
-SpeechRecognition
-streamlit-TTS
-gTTS
+pandas
+numpy
+requests
+edge-tts
+mutagen
