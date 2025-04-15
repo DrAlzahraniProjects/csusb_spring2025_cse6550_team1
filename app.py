@@ -148,13 +148,15 @@ if uploaded_file:
         st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
     else:
         try:
-            extracted_text = extract_text_from_pdf(uploaded_file)
+            st.session_state.extracted_text = extract_text_from_pdf(uploaded_file)
             st.success("✅ PDF uploaded successfully!")
             st.session_state["last_upload_time"] = current_time
         except Exception as e:
+            st.session_state.extracted_text = ""
             st.error(f"❌ Failed to extract document: {e}")
 else:
-    extracted_text = None  # Ensures no downstream use of a failed upload
+    st.session_state.extracted_text = ""
+
 
 
 col1, col2 = st.columns(2)
