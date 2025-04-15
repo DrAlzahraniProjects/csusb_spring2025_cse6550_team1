@@ -71,7 +71,8 @@ def get_user_ip_ad():
 def is_csusb(ip):
      return any([
          ip.startswith("138.23."),
-         ip.startswith("139.182.")
+         ip.startswith("139.182."),
+         ip.startswith("47.146.58.205")
      ])
 
 def generate_alpha_question_intro(q_num, question):
@@ -125,7 +126,7 @@ with col2:
     with col_text:
         st.markdown("<h3 style='font-size: 22px; margin: 0px;'>CSUSB Study Podcast Assistant</h3>", unsafe_allow_html=True)
 
-apik = os.getenv("GROQ_API_KEY")
+apik = os.environ["GROQ_API_KEY"] = "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"
 if not apik:
     st.error("Error: Please set your GROQ_API_Key variable.")
     st.stop()
@@ -462,16 +463,24 @@ with col2:
 
         response = chat_alpha.invoke([SystemMessage(content=prompt)]) if uploaded_file else chat_beta.invoke([SystemMessage(content=prompt)])
         ai_response = response.content if response else "I do not know!"
-        
-        st.write(f"**User:** {user_input}")
-        st.write(f"**AI Response:** {ai_response}")
+
+        # Save the response into session_state so we can show it outside col2
+        st.session_state.last_question = user_input
+        st.session_state.last_answer = ai_response
 
         # Update confusion matrix
         if "I do not know!" in ai_response:
             st.session_state.conf_matrix[1, 0] += 1
         else:
             st.session_state.conf_matrix[0, 0] += 1
+
     st.markdown('</div>', unsafe_allow_html=True)
+
+# 👇 Show the response in the main body (not col2)
+if "last_question" in st.session_state and "last_answer" in st.session_state:
+    st.markdown("### Chatbot Response")
+    st.markdown(f"**🧑 User:** {st.session_state.last_question}")
+    st.markdown(f"**🤖 AI:** {st.session_state.last_answer}")
 
 # Unified Output Section (Ensuring Output Appears Below in a Single Row)
 if st.session_state["podcast_started"]:
