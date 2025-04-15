@@ -45,6 +45,16 @@ else
     exit 1
 fi
 
+# Optional Cleanup Step
+echo "Checking if Docker container '$CONT_NAME' exists..."
+
+if docker ps -a --format '{{.Names}}' | grep -Eq "^${CONT_NAME}\$"; then
+    echo "Existing container found. Running docker-clean.sh..."
+    ./docker-clean.sh
+else
+    echo "No existing container named '$CONT_NAME'. Skipping cleanup."
+fi
+
 # Building Docker Image
 echo "Building Docker image..."
 docker build -t $CONT_NAME .

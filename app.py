@@ -400,7 +400,7 @@ if not is_csusb(user_ip):
     st.warning("Access denied")
     st.stop()
 else:
-    st.success("✅ Access Granted — Welcome CSUSB User!")
+    st.success("Welcome CSUSB User!")
 
 
 with col1:
