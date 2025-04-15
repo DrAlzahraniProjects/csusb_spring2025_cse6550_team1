@@ -144,14 +144,15 @@ if uploaded_file:
     ):
         wait_time = timedelta(minutes=2) - (current_time - st.session_state["last_upload_time"])
         st.warning(f"⚠️ Please wait {int(wait_time.total_seconds() // 60)} min {int(wait_time.total_seconds() % 60)} sec before uploading another file.")
-        uploaded_file = None
+        
     elif uploaded_file.size > 10 * 1024 * 1024:
         st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
-        uploaded_file = None
+        
     else:
+        # ✅ Only process here if the upload is valid
         extracted_text = extract_text_from_pdf(uploaded_file)
+        st.session_state["last_upload_time"] = current_time
         st.success("✅ PDF uploaded successfully!")
-
 
 col1, col2 = st.columns(2)
 with col1:
