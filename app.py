@@ -198,7 +198,7 @@ def update_sidebar():
         f1_score = (2 * precision * sensitivity) / (precision + sensitivity) if (precision + sensitivity) > 0 else 0
 
         st.markdown("### Model Metrics")
-        st.write(f"**Accuracy:** {accuracy:.2f}%")
+        st.write(f"**Accuracy:** {accuracy * 100:.2f}%")
         st.write(f"**Precision:** {precision:.2f}")
         st.write(f"**Sensitivity:** {sensitivity:.2f}")
         st.write(f"**Specificity:** {specificity:.2f}")
@@ -323,8 +323,8 @@ def test_ai_rephrasing():
     answerable_questions = [
         "Summarize a key concept mentioned early in the document.",
         "What topic does the document mainly discuss?",
-        "Name one specific detail or statistic mentioned in the document.",
-        "What is one recommendation or conclusion from the document?",
+        "Name one specific detail mentioned in the document.",
+        "What is the title of the paper?",
         "Identify one author or source cited in the document."
     ]
 
