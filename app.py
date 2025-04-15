@@ -205,7 +205,7 @@ def update_sidebar():
         st.write(f"**F1 Score:** {f1_score:.2f}")
 
 
-        if st.button("\ud83d\udd04 Reset Metrics", key="reset_button"):
+        if st.button("🔄 Reset Metrics", key="reset_button"):
             st.session_state.conf_matrix = np.array([[0, 0], [0, 0]])
             st.session_state["podcast_started"] = False
             st.success("Confusion Matrix & Model Metrics Reset!")
