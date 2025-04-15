@@ -40,7 +40,7 @@ git pull origin main
 Run the setup script to build and start the Docker container:
 
 ```bash
-chmod +x docker-launch.sh
+chmod +x docker-launch.sh docker-clean.sh
 ```
 
 ### Step 5: Run Build Script (enter your Groq API Key when prompted):
@@ -54,19 +54,6 @@ chmod +x docker-launch.sh
 For local:
 
 - Once the container starts, Open your browser at http://localhost:2501/team1s25
-
-
-### Step 7: Enable execute permissions for the Docker cleanup script:
-
-```bash
-chmod +x docker-clean.sh
-```
-
-### Step 8: Run the script to stop and remove the Docker image and container :
-
-```bash
-./docker-clean.sh
-```
 
 ---
 
