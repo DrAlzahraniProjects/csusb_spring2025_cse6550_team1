@@ -125,7 +125,7 @@ with col2:
     with col_text:
         st.markdown("<h3 style='font-size: 22px; margin: 0px;'>CSUSB Study Podcast Assistant</h3>", unsafe_allow_html=True)
 
-apik = os.getenv("GROQ_API_KEY")
+apik = os.environ["GROQ_API_KEY"] = "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"
 if not apik:
     st.error("Error: Please set your GROQ_API_Key variable.")
     st.stop()
@@ -439,41 +439,45 @@ with col1:
     user_input = st.text_input("Ask the Chatbot a Question (Document-based or Model-based)", key="chat_input")
 with col2:
     st.markdown('<div class="submit-button-container">', unsafe_allow_html=True)
+    
     if st.button(":material/send: Submit", key="submit_button_1"):
-        if extracted_text:
-            prompt = f"""
-            You are an AI assistant. Based on the document provided below, respond to the user's query in 2–3 lines. 
-            If the document does not contain the answer, respond with "I don't know." Do not guess or make up facts.
-
-            --- Document Start ---
-            {extracted_text[:10000]}
-            --- Document End ---
-
-            User Query: {user_input}
-            """
+        if not uploaded_file:
+            st.warning("⚠️ Please upload a PDF file before submitting your query.")
         else:
-            prompt = f"""
-            You are an AI assistant with general knowledge. Respond to the user's query in 2–3 lines.
-            If you don't know the answer, say "I don't know." Do not guess or make up facts.
+            if extracted_text:
+                prompt = f"""
+                You are an AI assistant. Based on the document provided below, respond to the user's query in 2–3 lines. 
+                If the document does not contain the answer, respond with "I don't know." Do not guess or make up facts.
 
-            User Query: {user_input}
-            """
+                --- Document Start ---
+                {extracted_text[:10000]}
+                --- Document End ---
 
+                User Query: {user_input}
+                """
+            else:
+                prompt = f"""
+                You are an AI assistant with general knowledge. Respond to the user's query in 2–3 lines.
+                If you don't know the answer, say "I don't know." Do not guess or make up facts.
 
-        response = chat_alpha.invoke([SystemMessage(content=prompt)]) if uploaded_file else chat_beta.invoke([SystemMessage(content=prompt)])
-        ai_response = response.content if response else "I do not know!"
+                User Query: {user_input}
+                """
 
-        # Save the response into session_state so we can show it outside col2
-        st.session_state.last_question = user_input
-        st.session_state.last_answer = ai_response
+            response = chat_alpha.invoke([SystemMessage(content=prompt)]) if uploaded_file else chat_beta.invoke([SystemMessage(content=prompt)])
+            ai_response = response.content if response else "I do not know!"
 
-        # Update confusion matrix
-        if "I do not know!" in ai_response:
-            st.session_state.conf_matrix[1, 0] += 1
-        else:
-            st.session_state.conf_matrix[0, 0] += 1
+            # Save the response into session_state so we can show it outside col2
+            st.session_state.last_question = user_input
+            st.session_state.last_answer = ai_response
+
+            # Update confusion matrix
+            if "I do not know!" in ai_response:
+                st.session_state.conf_matrix[1, 0] += 1
+            else:
+                st.session_state.conf_matrix[0, 0] += 1
 
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 # 👇 Show the response in the main body (not col2)
 if "last_question" in st.session_state and "last_answer" in st.session_state:
