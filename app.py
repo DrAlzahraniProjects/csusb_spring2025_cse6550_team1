@@ -71,8 +71,7 @@ def get_user_ip_ad():
 def is_csusb(ip):
      return any([
          ip.startswith("138.23."),
-         ip.startswith("139.182."),
-         ip.startswith("47.146.58.205")
+         ip.startswith("139.182.")
      ])
 
 def generate_alpha_question_intro(q_num, question):
@@ -126,7 +125,7 @@ with col2:
     with col_text:
         st.markdown("<h3 style='font-size: 22px; margin: 0px;'>CSUSB Study Podcast Assistant</h3>", unsafe_allow_html=True)
 
-apik = os.environ["GROQ_API_KEY"] = "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"
+apik = os.getenv("GROQ_API_KEY")
 if not apik:
     st.error("Error: Please set your GROQ_API_Key variable.")
     st.stop()
