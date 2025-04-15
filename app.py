@@ -242,7 +242,7 @@ def start_ai_podcast():
         if time_left() < 15:
             break
 
-        context = chunks[chunk_index][:1000]
+        context = chunks[chunk_index][:4000]
 
         question_prompt = f"""
         You're Alpha, a podcast host. Based on the document section below, ask Beta a short, casual podcast-style question. Be specific.
@@ -443,23 +443,23 @@ with col2:
     if st.button(":material/send: Submit", key="submit_button_1"):
         if extracted_text:
             prompt = f"""
-            You are an AI assistant. The following is the content extracted from a document uploaded by the user. Use this extracted text to respond to the user's queries.
+            You are an AI assistant. Based on the document provided below, respond to the user's query in 2–3 lines. 
+            If the document does not contain the answer, respond with "I don't know." Do not guess or make up facts.
 
-            Extracted Document Text:
-            {extracted_text[:1000]}
+            --- Document Start ---
+            {extracted_text[:10000]}
+            --- Document End ---
 
-            **User Query:** {user_input}
-
-            Provide an accurate response in the requested format.
+            User Query: {user_input}
             """
         else:
             prompt = f"""
-            You are an AI assistant with general knowledge. Please respond to the user's query based on your pre-trained knowledge.
-            
-            **User Query:** {user_input}
+            You are an AI assistant with general knowledge. Respond to the user's query in 2–3 lines.
+            If you don't know the answer, say "I don't know." Do not guess or make up facts.
 
-            Provide an accurate response in the requested format.
+            User Query: {user_input}
             """
+
 
         response = chat_alpha.invoke([SystemMessage(content=prompt)]) if uploaded_file else chat_beta.invoke([SystemMessage(content=prompt)])
         ai_response = response.content if response else "I do not know!"
