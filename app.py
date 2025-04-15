@@ -133,6 +133,8 @@ if not is_csusb(user_ip):
 else:
     uploaded_file = st.file_uploader("Upload a PDF document (Max: 10MB)", type=["pdf"])
 
+from datetime import datetime, timedelta
+
 if uploaded_file:
     current_time = datetime.now()
     if (
@@ -142,13 +144,18 @@ if uploaded_file:
     ):
         wait_time = timedelta(minutes=2) - (current_time - st.session_state["last_upload_time"])
         st.warning(f"⚠️ Please wait {int(wait_time.total_seconds() // 60)} min {int(wait_time.total_seconds() % 60)} sec before uploading another file.")
-        uploaded_file = None
     elif uploaded_file.size > 10 * 1024 * 1024:
         st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
-        uploaded_file = None
     else:
-        extracted_text = extract_text_from_pdf(uploaded_file)
-        st.success("✅ PDF uploaded successfully!")
+        try:
+            extracted_text = extract_text_from_pdf(uploaded_file)
+            st.success("✅ PDF uploaded successfully!")
+            st.session_state["last_upload_time"] = current_time
+        except Exception as e:
+            st.error(f"❌ Failed to extract document: {e}")
+else:
+    extracted_text = None  # Ensures no downstream use of a failed upload
+
 
 col1, col2 = st.columns(2)
 with col1:
