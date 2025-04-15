@@ -13,9 +13,6 @@ import tempfile
 import edge_tts
 import asyncio
 import base64
-import time
-import tempfile
-import asyncio
 
 try:
     from mutagen.mp3 import MP3
@@ -45,7 +42,6 @@ def speak_text(text, voice="alpha"):
                 </audio>
             """, unsafe_allow_html=True)
 
-            # Estimate or get actual duration
             duration = get_mp3_duration(tmpfile.name, text)
             time.sleep(duration)
 
@@ -56,23 +52,21 @@ def get_mp3_duration(file_path, text):
         audio = MP3(file_path)
         return audio.info.length
     else:
-        # Basic estimate: ~2.5 words per second
         words = len(text.split())
-        return max(words / 2.5, 2)  # minimum 2 seconds just in case
-
+        return max(words / 2.5, 2)
 
 def get_user_ip_ad():
-     try:
-         response = requests.get('https://api.ipify.org?format=json', timeout=2)
-         return response.json().get("ip", "")
-     except Exception:
-         return ""
- 
+    try:
+        response = requests.get('https://api.ipify.org?format=json', timeout=2)
+        return response.json().get("ip", "")
+    except Exception:
+        return ""
+
 def is_csusb(ip):
-     return any([
-         ip.startswith("138.23."),
-         ip.startswith("139.182.")
-     ])
+    return any([
+        ip.startswith("138.23."),
+        ip.startswith("139.182.")
+    ])
 
 def generate_alpha_question_intro(q_num, question):
     if q_num == 0:
@@ -98,7 +92,6 @@ st.set_page_config(
     page_icon="logo/csusb_logo.png",
 )
 
-# Custom CSS
 st.markdown("""
 <style>
 div[data-testid="stFileUploader"] div[aria-live="polite"] {
@@ -140,6 +133,10 @@ if "conf_matrix" not in st.session_state:
     st.session_state.conf_matrix = np.array([[0, 0], [0, 0]])
 if "last_upload_time" not in st.session_state:
     st.session_state["last_upload_time"] = None
+if "show_podcast_warning" not in st.session_state:
+    st.session_state.show_podcast_warning = False
+if "show_test_warning" not in st.session_state:
+    st.session_state.show_test_warning = False
 
 def extract_text_from_pdf(pdf_file):
     try:
@@ -148,26 +145,64 @@ def extract_text_from_pdf(pdf_file):
     except Exception as e:
         return f"Error extracting PDF text: {str(e)}"
 
-uploaded_file = None
 user_ip = get_user_ip_ad()
-
-
 if not is_csusb(user_ip):
     st.warning("Access denied")
     st.stop()
 else:
     uploaded_file = st.file_uploader("Upload a PDF document (Max: 10MB)", type=["pdf"])
 
+if uploaded_file:
+    current_time = datetime.now()
+    if (
+        "last_upload_time" in st.session_state and
+        st.session_state["last_upload_time"] is not None and
+        current_time - st.session_state["last_upload_time"] < timedelta(minutes=2)
+    ):
+        wait_time = timedelta(minutes=2) - (current_time - st.session_state["last_upload_time"])
+        st.warning(f"⚠️ Please wait {int(wait_time.total_seconds() // 60)} min {int(wait_time.total_seconds() % 60)} sec before uploading another file.")
+        uploaded_file = None
+    elif uploaded_file.size > 10 * 1024 * 1024:
+        st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
+        uploaded_file = None
+    else:
+        extracted_text = extract_text_from_pdf(uploaded_file)
+        st.success("✅ PDF uploaded successfully!")
 
-if 'conf_matrix' not in st.session_state:
-    st.session_state.conf_matrix = np.array([[0, 0], [0, 0]])
+col1, col2 = st.columns(2)
+with col1:
+    start_clicked = st.button(":material/voice_chat: Start AI Podcast", key="start_podcast_button_1")
+with col2:
+    test_clicked = st.button(":material/bug_report: Test AI", key="test_ai_button")
+
+if start_clicked:
+    st.session_state["show_test_warning"] = False
+    if not uploaded_file:
+        st.session_state["show_podcast_warning"] = True
+    else:
+        st.session_state["podcast_started"] = True
+        st.session_state["last_upload_time"] = datetime.now()
+        st.session_state["show_podcast_warning"] = False
+
+if test_clicked:
+    st.session_state["show_podcast_warning"] = False
+    if not uploaded_file or not extracted_text:
+        st.session_state["show_test_warning"] = True
+    else:
+        st.session_state["test_ai_clicked"] = True
+        st.session_state["show_test_warning"] = False
+
+if st.session_state["show_podcast_warning"]:
+    st.warning("🚨 Please upload a PDF before starting the podcast.")
+elif st.session_state["show_test_warning"]:
+    st.warning("🚨 Please upload a PDF before testing the AI.")
 
 def update_sidebar():
     with st.sidebar:
         st.markdown("### Confusion Matrix")
         st.write(pd.DataFrame(st.session_state.conf_matrix, 
-                              columns=["Answered Correctly", "Not Answered"],
-                              index=["Actual Yes", "Actual No"]))
+                            columns=["Answered Correctly", "Not Answered"],
+                            index=["Actual Yes", "Actual No"]))
 
         tp, fn = st.session_state.conf_matrix[0, 0], st.session_state.conf_matrix[1, 0]
         fp = st.session_state.conf_matrix[0, 1] if 0 in st.session_state.conf_matrix.shape else 0
@@ -193,17 +228,17 @@ def update_sidebar():
             st.success("Confusion Matrix & Model Metrics Reset!")
             st.experimental_rerun()
 
-# AI Podcast Function (Modified to Use Uploaded Document) 
-import time
-
 def start_ai_podcast():
+    if not uploaded_file or not extracted_text:
+        st.warning("Please upload a PDF document before testing the AI.")
+        return
+
     st.markdown("## 🎙️ Welcome to the AI Podcast")
 
     messages.clear()
     start_time = time.time()
-    max_duration = 180  # Total duration: 3 minutes
+    max_duration = 180
 
-    # Load PDF chunks by page for question variety
     from PyPDF2 import PdfReader
     try:
         reader = PdfReader(uploaded_file)
@@ -221,13 +256,15 @@ def start_ai_podcast():
     def time_left():
         return max_duration - (time.time() - start_time)
 
-    # Alpha's short intro
-    intro_prompt = """
-    You're Alpha, the podcast host. Generate a short and friendly podcast intro (1–2 sentences max) that:
-    - Greets the audience
-    - Introduces yourself as Alpha
-    - Says you're discussing something interesting with Beta (no placeholder text like 'Insert Topic Name')
-    Keep it casual and fun, like a real chill podcast.
+    context = extracted_text[:4000]
+
+    intro_prompt = f"""
+    You are Alpha, the host of a podcast. Write a short (1–2 sentences), natural-sounding podcast intro.
+    Don't include labels like 'Alpha:' or 'Beta:'.
+    Just greet the audience, introduce yourself as Alpha, and casually mention you and Beta will be exploring ideas from the document.
+
+    Document:
+    {context}
     """
     intro = chat_alpha.invoke([HumanMessage(content=intro_prompt)]).content.strip()
     st.markdown(f"**Alpha:** {intro}")
@@ -237,114 +274,79 @@ def start_ai_podcast():
     time.sleep(0.2)
 
     q_num = 0
+    last_beta_response = None
+
     while time_left() > 15:
         if time_left() < 15:
             break
 
         context = chunks[chunk_index][:4000]
 
-        question_prompt = f"""
-        You're Alpha, a podcast host. Based on the document section below, ask Beta a short, casual podcast-style question. Be specific.
+        if last_beta_response:
+            alpha_prompt = f"""
+            You are Alpha, the host of a podcast. Respond to what Beta just said in a natural, casual way.
+            You can ask a follow-up question or move on to a new topic, but it should flow naturally.
+            Do NOT include names or labels like 'Alpha:' or 'Beta:'.
 
-        Document:
-        {context}
-        """
-        question = chat_alpha.invoke([HumanMessage(content=question_prompt)]).content.strip()
-        question = question.replace("→", "").replace("Alpha:", "").strip()
+            Document Context:
+            {context}
 
-        alpha_q = generate_alpha_question_intro(q_num, question)
-        st.markdown(f"**Alpha:** {alpha_q}")
-        speak_text(alpha_q, voice="alpha")
+            Beta just said:
+            {last_beta_response}
+            """
+        else:
+            alpha_prompt = f"""
+            You are Alpha, a podcast host. Based ONLY on the context from the document below, ask Beta one thoughtful, casual question.
+            Keep it short and natural. No greetings. Don’t include names or labels like 'Alpha:' or 'Beta:'.
+
+            Document:
+            {context}
+            """
+
+        alpha_question = chat_alpha.invoke([HumanMessage(content=alpha_prompt)]).content.strip()
+        st.markdown(f"**Alpha:** {alpha_question}")
+        speak_text(alpha_question, voice="alpha")
 
         time.sleep(0.2)
         if time_left() < 10:
             break
 
         beta_prompt = f"""
-        You're Beta, a podcast co-host. Respond to Alpha’s question using ONLY the document section below. If it's not there, say "I don't know." Keep your response brief and natural (2–3 lines).
+        You are Beta, the co-host of a podcast. Answer Alpha's question using ONLY the content from the document context below.
+        Keep it short, conversational, and don't include any names or labels like 'Alpha:' or 'Beta:'.
+        If you don’t have the info, say something casual like 'I’m not sure about that one.'
 
         Document:
         {context}
 
-        Question:
-        {question}
+        Alpha asked:
+        {alpha_question}
         """
-        ai_response = chat_beta.invoke([SystemMessage(content=beta_prompt)]).content.strip()
+        beta_response = chat_beta.invoke([SystemMessage(content=beta_prompt)]).content.strip()
 
-        # 🎙️ Make Beta's "I don't know" sound natural and casual
-        if ai_response.lower() in ["i don't know", "i do not know", "i'm not sure"]:
-            beta_natural_responses = [
-                "Hmm, I'm not quite sure about that one.",
-                "That's a bit outside my scope, Alpha!",
-                "Good question, but I don’t think the document covers that.",
-                "I wish I had the answer, but I don't have enough info from the doc."
-            ]
-            ai_response = random.choice(beta_natural_responses)
-
-        messages.append(AIMessage(content=ai_response))
-
-        st.markdown(f"**Beta:** {ai_response}")
-        speak_text(ai_response, voice="beta")
-
-
-        time.sleep(0.2)
-        
-        # 🎤 If Beta didn't really know the answer, Alpha reacts more casually
-        if any(x in ai_response.lower() for x in [
-            "i'm not quite sure", "i don't have", "outside my scope", "wish i had the answer"
-        ]):
-            alpha_follow_up = random.choice([
-                "No problem, let's move on to something else.",
-                "All good, Beta — not everything has a clear answer!",
-                "Fair enough, let’s try something more direct.",
-                "Haha, that’s okay — let’s switch gears!"
+        if beta_response.lower() in ["i don't know", "i do not know", "i'm not sure"]:
+            beta_response = random.choice([
+                "Hmm, I’m not totally sure about that.",
+                "Yeah, that’s not really clear in the doc.",
+                "Hard to say, honestly.",
+                "Not sure on that one."
             ])
-        else:
-            follow_up_prompt = f"""
-            You're Alpha, the podcast host. React briefly (1 casual sentence) to Beta’s answer.
 
-            Beta said: {ai_response}
-            """
-            alpha_follow_up = chat_alpha.invoke([HumanMessage(content=follow_up_prompt)]).content.strip()
-
-        messages.append(HumanMessage(content=alpha_follow_up))
-
-        st.markdown(f"**Alpha:** {alpha_follow_up}")
-        speak_text(alpha_follow_up, voice="alpha")
-
-        st.markdown("---")
+        st.markdown(f"**Beta:** {beta_response}")
+        speak_text(beta_response, voice="beta")
         time.sleep(0.2)
-        q_num += 1
+
+        last_beta_response = beta_response
         chunk_index = (chunk_index + 1) % len(chunks)
+        q_num += 1
 
     outro_prompt = """
-    You're Alpha, the podcast host. End the podcast with a short outro (3-4 sentences), thanking Beta and the audience in a friendly tone.
+    You are Alpha, the podcast host. Wrap up the episode in a friendly, casual way. Thank Beta and the audience, and sign off.
+    Keep it short. Don’t include labels like 'Alpha:'.
     """
     outro = chat_alpha.invoke([HumanMessage(content=outro_prompt)]).content.strip()
     st.markdown(f"**Alpha:** {outro}")
     speak_text(outro, voice="alpha")
-
-
-if uploaded_file:
-    current_time = datetime.now()
-
-    # ⛔ Block if last podcast was completed less than 2 minutes ago
-    if (
-        "last_upload_time" in st.session_state and
-        st.session_state["last_upload_time"] is not None and
-        current_time - st.session_state["last_upload_time"] < timedelta(minutes=2)
-    ):
-        wait_time = timedelta(minutes=2) - (current_time - st.session_state["last_upload_time"])
-        st.warning(f"⚠️ Please wait {int(wait_time.total_seconds() // 60)} min {int(wait_time.total_seconds() % 60)} sec before uploading another file.")
-        uploaded_file = None  # Ignore this file
-    elif uploaded_file.size > 10 * 1024 * 1024:
-        st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
-        uploaded_file = None
-    else:
-        # ✅ Extract the text but don't start podcast yet
-        extracted_text = extract_text_from_pdf(uploaded_file)
-        st.success("✅ PDF uploaded successfully!")
-
 
 # Function to test AI rephrasing and answering
 def test_ai_rephrasing():
@@ -411,27 +413,6 @@ def test_ai_rephrasing():
     update_sidebar()
       
 # Create three buttons in separate columns above the text input box
-col1, col2, col3 = st.columns(3)
-
-user_ip = get_user_ip_ad()
-if not is_csusb(user_ip):
-    st.warning("Access denied")
-    st.stop()
-else:
-    st.success("Welcome CSUSB User!")
-
-
-with col1:
-    if st.button(":material/voice_chat: Start AI Podcast", key="start_podcast_button_1"):
-        if not uploaded_file:
-            st.warning("Please upload a PDF before starting the podcast.")
-        else:
-            st.session_state["podcast_started"] = True
-            st.session_state["last_upload_time"] = datetime.now()  # start cooldown after it runs
-
-with col2:
-    if st.button(":material/bug_report: Test AI", key="test_ai_button"):
-        st.session_state["test_ai_clicked"] = True
 
 # Chatbot Input for Document-based or Model-based Communication
 col1, col2 = st.columns([4, 1])
