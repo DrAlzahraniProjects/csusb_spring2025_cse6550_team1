@@ -99,7 +99,7 @@ with col2:
     with col_text:
         st.markdown("<h3 style='font-size: 22px; margin: 0px;'>CSUSB Study Podcast Assistant</h3>", unsafe_allow_html=True)
 
-apik = os.environ["GROQ_API_KEY"] = "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"
+apik = os.environ["GROQ_API_KEY"]
 if not apik:
     st.error("Error: Please set your GROQ_API_Key variable.")
     st.stop()
