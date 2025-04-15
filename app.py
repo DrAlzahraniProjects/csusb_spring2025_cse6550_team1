@@ -10,7 +10,7 @@ import random
 from datetime import datetime, timedelta
 import requests
 import tempfile
-import edge_tts  # ✅ Edge TTS
+import edge_tts
 import asyncio
 import base64
 import time
@@ -270,21 +270,43 @@ def start_ai_podcast():
         {question}
         """
         ai_response = chat_beta.invoke([SystemMessage(content=beta_prompt)]).content.strip()
+
+        # 🎙️ Make Beta's "I don't know" sound natural and casual
+        if ai_response.lower() in ["i don't know", "i do not know", "i'm not sure"]:
+            beta_natural_responses = [
+                "Hmm, I'm not quite sure about that one.",
+                "That's a bit outside my scope, Alpha!",
+                "Good question, but I don’t think the document covers that.",
+                "I wish I had the answer, but I don't have enough info from the doc."
+            ]
+            ai_response = random.choice(beta_natural_responses)
+
         messages.append(AIMessage(content=ai_response))
 
         st.markdown(f"**Beta:** {ai_response}")
         speak_text(ai_response, voice="beta")
 
+
         time.sleep(0.2)
-        if time_left() < 10:
-            break
+        
+        # 🎤 If Beta didn't really know the answer, Alpha reacts more casually
+        if any(x in ai_response.lower() for x in [
+            "i'm not quite sure", "i don't have", "outside my scope", "wish i had the answer"
+        ]):
+            alpha_follow_up = random.choice([
+                "No problem, let's move on to something else.",
+                "All good, Beta — not everything has a clear answer!",
+                "Fair enough, let’s try something more direct.",
+                "Haha, that’s okay — let’s switch gears!"
+            ])
+        else:
+            follow_up_prompt = f"""
+            You're Alpha, the podcast host. React briefly (1 casual sentence) to Beta’s answer.
 
-        follow_up_prompt = f"""
-        You're Alpha, the podcast host. React briefly (1 casual sentence) to Beta’s answer.
+            Beta said: {ai_response}
+            """
+            alpha_follow_up = chat_alpha.invoke([HumanMessage(content=follow_up_prompt)]).content.strip()
 
-        Beta said: {ai_response}
-        """
-        alpha_follow_up = chat_alpha.invoke([HumanMessage(content=follow_up_prompt)]).content.strip()
         messages.append(HumanMessage(content=alpha_follow_up))
 
         st.markdown(f"**Alpha:** {alpha_follow_up}")
@@ -310,7 +332,7 @@ if uploaded_file:
     if (
         "last_upload_time" in st.session_state and
         st.session_state["last_upload_time"] is not None and
-        current_time - st.session_state["last_upload_time"] < timedelta(minutes=5)
+        current_time - st.session_state["last_upload_time"] < timedelta(minutes=2)
     ):
         wait_time = timedelta(minutes=2) - (current_time - st.session_state["last_upload_time"])
         st.warning(f"⚠️ Please wait {int(wait_time.total_seconds() // 60)} min {int(wait_time.total_seconds() % 60)} sec before uploading another file.")
@@ -319,14 +341,10 @@ if uploaded_file:
         st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
         uploaded_file = None
     else:
-        # ✅ Valid upload, process it
+        # ✅ Extract the text but don't start podcast yet
         extracted_text = extract_text_from_pdf(uploaded_file)
+        st.success("✅ PDF uploaded successfully!")
 
-        # 🧠 Start podcast right after upload
-        start_ai_podcast()
-
-        # ⏱ Save upload time AFTER podcast finishes
-        st.session_state["last_upload_time"] = datetime.now()
 
 # Function to test AI rephrasing and answering
 def test_ai_rephrasing():
@@ -364,7 +382,7 @@ def test_ai_rephrasing():
             You are Beta, a podcast co-host. Answer the question below using ONLY the uploaded document. If the document does not include an answer, say "I don't know."
 
             Document:
-            {extracted_text[:1000]}
+            {extracted_text[:4000]}
 
             Question: {question}
             """
@@ -373,7 +391,7 @@ def test_ai_rephrasing():
             You are Beta, a podcast co-host. You can ONLY answer questions using the uploaded document. If the document does not provide the answer, say "I don't know."
 
             Document:
-            {extracted_text[:1000]}
+            {extracted_text[:4000]}
 
             Question: {question}
             """
@@ -405,8 +423,11 @@ else:
 
 with col1:
     if st.button(":material/voice_chat: Start AI Podcast", key="start_podcast_button_1"):
-        st.session_state["podcast_started"] = True
-
+        if not uploaded_file:
+            st.warning("Please upload a PDF before starting the podcast.")
+        else:
+            st.session_state["podcast_started"] = True
+            st.session_state["last_upload_time"] = datetime.now()  # start cooldown after it runs
 
 with col2:
     if st.button(":material/bug_report: Test AI", key="test_ai_button"):
