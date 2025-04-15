@@ -68,25 +68,6 @@ def is_csusb(ip):
         ip.startswith("139.182.")
     ])
 
-def generate_alpha_question_intro(q_num, question):
-    if q_num == 0:
-        starters = [
-            "Alright Beta, let's kick things off—",
-            "Okay, first up—",
-            "Let's dive into it—",
-            "To get us started—",
-            "Kicking things off, Beta—"
-        ]
-    else:
-        starters = [
-            f"Question {q_num + 1} coming at you—",
-            "Alright, next up—",
-            "Let's keep it rolling—",
-            "Here's another one—",
-            "This one's interesting—"
-        ]
-    return random.choice(starters) + question
-
 st.set_page_config(
     page_title="CSUSB Study Podcast",
     page_icon="logo/csusb_logo.png",
@@ -200,29 +181,31 @@ elif st.session_state["show_test_warning"]:
 def update_sidebar():
     with st.sidebar:
         st.markdown("### Confusion Matrix")
-        st.write(pd.DataFrame(st.session_state.conf_matrix, 
-                            columns=["Answered Correctly", "Not Answered"],
-                            index=["Actual Yes", "Actual No"]))
+        st.write(pd.DataFrame(
+            st.session_state.conf_matrix,
+            columns=["Answered", "Didn't Answer"],
+            index=["Should Answer (Actual 1)", "Shouldn't Answer (Actual 0)"]
+        ))
 
-        tp, fn = st.session_state.conf_matrix[0, 0], st.session_state.conf_matrix[1, 0]
-        fp = st.session_state.conf_matrix[0, 1] if 0 in st.session_state.conf_matrix.shape else 0
-        tn = st.session_state.conf_matrix[1, 1] if 1 in st.session_state.conf_matrix.shape else 0
+        tp, fn = st.session_state.conf_matrix[0]
+        fp, tn = st.session_state.conf_matrix[1]
 
         total = tp + tn + fp + fn
-        model_accuracy = ((tp + tn) / total) * 100 if total > 0 else 0
-        precision = (tp / (tp + fp)) * 100 if (tp + fp) > 0 else 0
-        recall = (tp / (tp + fn)) * 100 if (tp + fn) > 0 else 0
-        f1_score = (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
-        specificity = (tn / (tn + fp)) * 100 if (tn + fp) > 0 else 0
+        accuracy = ((tp + tn) / total) if total > 0 else 0
+        precision = (tp / (tp + fp)) if (tp + fp) > 0 else 0
+        sensitivity = (tp / (tp + fn)) if (tp + fn) > 0 else 0
+        specificity = (tn / (tn + fp)) if (tn + fp) > 0 else 0
+        f1_score = (2 * precision * sensitivity) / (precision + sensitivity) if (precision + sensitivity) > 0 else 0
 
         st.markdown("### Model Metrics")
-        st.write(f"**Model Accuracy:** {model_accuracy:.2f}%")
-        st.write(f"**Precision:** {precision:.2f}%")
-        st.write(f"**Recall (Sensitivity):** {recall:.2f}%")
-        st.write(f"**Specificity:** {specificity:.2f}%")
-        st.write(f"**F1 Score:** {f1_score:.2f}%")
+        st.write(f"**Accuracy:** {accuracy:.2f}%")
+        st.write(f"**Precision:** {precision:.2f}")
+        st.write(f"**Sensitivity:** {sensitivity:.2f}")
+        st.write(f"**Specificity:** {specificity:.2f}")
+        st.write(f"**F1 Score:** {f1_score:.2f}")
 
-        if st.button("🔄 Reset Metrics", key="reset_button"):
+
+        if st.button("\ud83d\udd04 Reset Metrics", key="reset_button"):
             st.session_state.conf_matrix = np.array([[0, 0], [0, 0]])
             st.session_state["podcast_started"] = False
             st.success("Confusion Matrix & Model Metrics Reset!")
@@ -337,7 +320,6 @@ def test_ai_rephrasing():
         st.warning("Please upload a PDF document before testing the AI.")
         return
 
-    # 5 questions that CAN be answered based on the document
     answerable_questions = [
         "Summarize a key concept mentioned early in the document.",
         "What topic does the document mainly discuss?",
@@ -346,7 +328,6 @@ def test_ai_rephrasing():
         "Identify one author or source cited in the document."
     ]
 
-    # 5 questions that are clearly unrelated and should not be answerable
     unanswerable_questions = [
         "What’s the capital of Iceland?",
         "Who won the Super Bowl in 2024?",
@@ -362,24 +343,15 @@ def test_ai_rephrasing():
         st.markdown(f"**Alpha:** {question}")
         speak_text(question, voice="alpha")
 
-        if question in answerable_questions:
-            beta_prompt = f"""
-            You are Beta, a podcast co-host. Answer the question below using ONLY the uploaded document. If the document does not include an answer, say "I don't know."
+        beta_prompt = f"""
+        You are Beta, a podcast co-host. Answer the question below using ONLY the uploaded document. 
+        If the document does not include an answer, say \"I don't know.\"
 
-            Document:
-            {extracted_text[:4000]}
+        Document:
+        {extracted_text[:4000]}
 
-            Question: {question}
-            """
-        else:
-            beta_prompt = f"""
-            You are Beta, a podcast co-host. You can ONLY answer questions using the uploaded document. If the document does not provide the answer, say "I don't know."
-
-            Document:
-            {extracted_text[:4000]}
-
-            Question: {question}
-            """
+        Question: {question}
+        """
 
         response = chat_beta.invoke([SystemMessage(content=beta_prompt)])
         ai_response = response.content.strip() if response else "I don't know"
@@ -387,15 +359,18 @@ def test_ai_rephrasing():
         st.markdown(f"**Beta:** {ai_response}")
         speak_text(ai_response, voice="beta")
 
-        # Update confusion matrix
-        if "I don't know" in ai_response:
-            st.session_state.conf_matrix[1, 1] += 1
+        if question in answerable_questions:
+            if "I don't know" in ai_response:
+                st.session_state.conf_matrix[0, 1] += 1  # FN
+            else:
+                st.session_state.conf_matrix[0, 0] += 1  # TP
         else:
-            st.session_state.conf_matrix[0, 0] += 1
+            if "I don't know" in ai_response:
+                st.session_state.conf_matrix[1, 1] += 1  # TN
+            else:
+                st.session_state.conf_matrix[1, 0] += 1  # FP
 
     update_sidebar()
-      
-# Create three buttons in separate columns above the text input box
 
 # Chatbot Input for Document-based or Model-based Communication
 col1, col2 = st.columns([4, 1])
