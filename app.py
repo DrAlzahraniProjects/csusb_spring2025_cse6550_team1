@@ -229,13 +229,8 @@ def update_sidebar():
             st.experimental_rerun()
 
 def start_ai_podcast():
-    if not uploaded_file or not extracted_text:
-        st.warning("Please upload a PDF document before testing the AI.")
-        return
-
     st.markdown("## 🎙️ Welcome to the AI Podcast")
-
-    messages.clear()
+    messages = []
     start_time = time.time()
     max_duration = 180
 
@@ -252,16 +247,12 @@ def start_ai_podcast():
         return
 
     chunk_index = 0
-
-    def time_left():
-        return max_duration - (time.time() - start_time)
-
     context = extracted_text[:4000]
 
     intro_prompt = f"""
-    You are Alpha, the host of a podcast. Write a short (1–2 sentences), natural-sounding podcast intro.
-    Don't include labels like 'Alpha:' or 'Beta:'.
-    Just greet the audience, introduce yourself as Alpha, and casually mention you and Beta will be exploring ideas from the document.
+    You're Alpha, kicking off a casual podcast with your co-host Beta.
+    Say hi, drop your name, and mention you're diving into a doc together.
+    Keep it under 2 sentences. Make it relaxed, friendly, not robotic.
 
     Document:
     {context}
@@ -271,24 +262,21 @@ def start_ai_podcast():
     speak_text(intro, voice="alpha")
 
     st.markdown("---")
-    time.sleep(0.2)
-
     q_num = 0
     last_beta_response = None
 
-    while time_left() > 15:
-        if time_left() < 15:
-            break
-
+    while time.time() - start_time < max_duration:
         context = chunks[chunk_index][:4000]
 
         if last_beta_response:
+            tone = random.choice(["curious", "amused", "sarcastic", "chill", "deep thinker"])
             alpha_prompt = f"""
-            You are Alpha, the host of a podcast. Respond to what Beta just said in a natural, casual way.
-            You can ask a follow-up question or move on to a new topic, but it should flow naturally.
-            Do NOT include names or labels like 'Alpha:' or 'Beta:'.
+            You're Alpha, a podcast host with a {tone} vibe.
+            React to what Beta just said or ask a follow-up. Keep it smooth and natural.
+            Avoid names and labels.
+            Be very brief, three sentences max.
 
-            Document Context:
+            Context:
             {context}
 
             Beta just said:
@@ -296,8 +284,8 @@ def start_ai_podcast():
             """
         else:
             alpha_prompt = f"""
-            You are Alpha, a podcast host. Based ONLY on the context from the document below, ask Beta one thoughtful, casual question.
-            Keep it short and natural. No greetings. Don’t include names or labels like 'Alpha:' or 'Beta:'.
+            You're Alpha, podcast host. Ask a quick, casual question based on the doc.
+            Keep it real and tight, with short, quick, questions.
 
             Document:
             {context}
@@ -307,14 +295,9 @@ def start_ai_podcast():
         st.markdown(f"**Alpha:** {alpha_question}")
         speak_text(alpha_question, voice="alpha")
 
-        time.sleep(0.2)
-        if time_left() < 10:
-            break
-
         beta_prompt = f"""
-        You are Beta, the co-host of a podcast. Answer Alpha's question using ONLY the content from the document context below.
-        Keep it short, conversational, and don't include any names or labels like 'Alpha:' or 'Beta:'.
-        If you don’t have the info, say something casual like 'I’m not sure about that one.'
+        You're Beta, the podcast co-host. Answer Alpha's question based ONLY on the doc below.
+        Keep it short, conversational. If unsure, say something casual like 'Not sure on that one.'
 
         Document:
         {context}
@@ -322,6 +305,7 @@ def start_ai_podcast():
         Alpha asked:
         {alpha_question}
         """
+
         beta_response = chat_beta.invoke([SystemMessage(content=beta_prompt)]).content.strip()
 
         if beta_response.lower() in ["i don't know", "i do not know", "i'm not sure"]:
@@ -334,15 +318,14 @@ def start_ai_podcast():
 
         st.markdown(f"**Beta:** {beta_response}")
         speak_text(beta_response, voice="beta")
-        time.sleep(0.2)
 
         last_beta_response = beta_response
         chunk_index = (chunk_index + 1) % len(chunks)
         q_num += 1
 
     outro_prompt = """
-    You are Alpha, the podcast host. Wrap up the episode in a friendly, casual way. Thank Beta and the audience, and sign off.
-    Keep it short. Don’t include labels like 'Alpha:'.
+    You're Alpha, the podcast host. Wrap up the episode in a friendly, casual way.
+    Thank Beta and the audience, and sign off. Keep it short.
     """
     outro = chat_alpha.invoke([HumanMessage(content=outro_prompt)]).content.strip()
     st.markdown(f"**Alpha:** {outro}")
