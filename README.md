@@ -13,43 +13,21 @@ Before you begin, ensure you have the following:
 
 ### Step 1: Clone the Repository
 
-Clone the GitHub repository to your local machine:
+Clone the GitHub repository to your local machine and navigate to that directory:
 
 ```bash
-git clone https://github.com/DrAlzahraniProjects/csusb_spring2025_cse6550_team1
+git clone https://github.com/DrAlzahraniProjects/csusb_spring2025_cse6550_team1 && cd csusb_spring2025_cse6550_team1
 ```
 
-### Step 2: Navigate to the Repository
-
-Change to the cloned repository directory:
-
-```bash
-cd csusb_spring2025_cse6550_team1
-```
-
-### Step 3: Pull the Latest Version
-
-Update the repository to the latest version:
-
-```bash
-git pull origin main
-```
-
-### Step 4: Set Build Script
+### Step 2: Set & Run Build Script (enter your Groq API Key when prompted):
 
 Run the setup script to build and start the Docker container:
 
 ```bash
-chmod +x docker-launch.sh docker-clean.sh
+chmod +x docker-launch.sh && ./docker-launch.sh
 ```
 
-### Step 5: Run Build Script (enter your Groq API Key when prompted):
-
-```bash
-./docker-launch.sh
-```
-
-### Step 6: Access the Chatbot
+### Step 3: Access the Chatbot
 
 For local:
 
