@@ -80,7 +80,7 @@ def is_csusb(ip):
 
 st.set_page_config(
     page_title="CSUSB Study Podcast",
-    page_icon="logo/csusb_logo.png",
+    page_icon="./logo/csusb_logo.png",
 )
 
 st.markdown("""
@@ -105,7 +105,7 @@ col1, col2, col3 = st.columns([1, 3, 1])
 with col2:
     col_img, col_text = st.columns([0.2, 1])
     with col_img:
-        st.image("logo/csusb_logo.png", width=60)
+        st.image("./logo/csusb_logo.png", width=60)
     with col_text:
         st.markdown("<h3 style='font-size: 22px; margin: 0px;'>CSUSB Study Podcast Assistant</h3>", unsafe_allow_html=True)
 
