@@ -13,6 +13,7 @@ import tempfile
 import edge_tts
 import asyncio
 import base64
+import re
 
 try:
     from mutagen.mp3 import MP3
@@ -25,6 +26,23 @@ extracted_text = ""
 
 cooldown_active = False
 
+LOCK_FILE = "/tmp/streamlit_app.lock"
+LOCK_TIMEOUT = 180  # 3 minutes
+def is_locked():
+    if os.path.exists(LOCK_FILE):
+        with open(LOCK_FILE, "r") as f:
+            timestamp = float(f.read().strip())
+            if time.time() - timestamp < LOCK_TIMEOUT:
+                return True
+    return False
+
+def set_lock():
+    with open(LOCK_FILE, "w") as f:
+        f.write(str(time.time()))
+
+def release_lock():
+    if os.path.exists(LOCK_FILE):
+        os.remove(LOCK_FILE)
 
 def speak_text(text, voice="alpha"):
     voice_map = {
@@ -35,7 +53,7 @@ def speak_text(text, voice="alpha"):
 
     async def run_tts():
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmpfile:
-            communicate = edge_tts.Communicate(text, real_voice)
+            communicate = edge_tts.Communicate(text, real_voice, rate="+10%")
             await communicate.save(tmpfile.name)
 
             with open(tmpfile.name, "rb") as audio_file:
@@ -141,33 +159,37 @@ user_ip = get_user_ip_ad()
 if not is_csusb(user_ip):
     st.warning("Access denied")
     st.stop()
-else:
-    st.success("Welcome, CSUSB User!")
 
-    current_time = datetime.now()
-    if (
-        st.session_state["last_upload_time"] is not None and
-        current_time - st.session_state["last_upload_time"] < timedelta(minutes=5)
-    ):
-        wait_time = timedelta(minutes=5) - (current_time - st.session_state["last_upload_time"])
-        cooldown_active = True
-        countdown_placeholder = st.empty()
-        while wait_time.total_seconds() > 0:
-            minutes, seconds = divmod(int(wait_time.total_seconds()), 60)
-            countdown_placeholder.warning(f"⏳ Upload locked. Please wait {minutes:02d}:{seconds:02d} to upload a new document.")
-            time.sleep(1)
-            wait_time -= timedelta(seconds=1)
-        countdown_placeholder.empty()
-        st.rerun()
-    else:
-        potential_file = st.file_uploader("Upload a PDF document (Max: 10MB)", type=["pdf"])
-        if potential_file:
-            if potential_file.size > 10 * 1024 * 1024:
-                st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
-            else:
-                uploaded_file = potential_file
-                extracted_text = extract_text_from_pdf(uploaded_file)
-                st.success("✅ PDF uploaded successfully!")
+if is_locked():
+    st.warning("🚧 Someone else is currently using the app. Please try again in a few minutes.")
+    st.stop()
+
+st.success("Welcome, CSUSB User!")
+
+current_time = datetime.now()
+if (
+    st.session_state["last_upload_time"] is not None and
+    current_time - st.session_state["last_upload_time"] < timedelta(minutes=5)
+):
+    wait_time = timedelta(minutes=5) - (current_time - st.session_state["last_upload_time"])
+    cooldown_active = True
+    countdown_placeholder = st.empty()
+    while wait_time.total_seconds() > 0:
+        minutes, seconds = divmod(int(wait_time.total_seconds()), 60)
+        countdown_placeholder.warning(f"⏳ Upload locked. Please wait {minutes:02d}:{seconds:02d} to upload a new document.")
+        time.sleep(1)
+        wait_time -= timedelta(seconds=1)
+    countdown_placeholder.empty()
+    st.rerun()
+else:
+    potential_file = st.file_uploader("Upload a PDF document (Max: 10MB)", type=["pdf"])
+    if potential_file:
+        if potential_file.size > 10 * 1024 * 1024:
+            st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
+        else:
+            uploaded_file = potential_file
+            extracted_text = extract_text_from_pdf(uploaded_file)
+            st.success("✅ PDF uploaded successfully!")
 
 start_clicked = st.button(":material/voice_chat: Start AI Podcast", key="start_podcast_button_1")
 
@@ -176,6 +198,7 @@ if start_clicked:
     if not uploaded_file:
         st.session_state["show_podcast_warning"] = True
     else:
+        set_lock()
         st.session_state["podcast_started"] = True
         st.session_state["last_upload_time"] = datetime.now()
         st.session_state["show_podcast_warning"] = False
@@ -248,9 +271,11 @@ def start_ai_podcast():
             """
         else:
             alpha_prompt = f"""
-            You're Alpha, podcast host. Ask a quick, casual question based on the doc.
-            Keep it real and tight, with short, quick, questions.
-
+            You're Alpha, podcast host. You've already introduced yourself.
+            Now ask a quick, casual, curiosity-driven question about the document.
+            Do not say your name or mention this is the start.
+            Make it sound like you're already in the middle of the show.
+            
             Document:
             {context}
             """
@@ -306,6 +331,7 @@ def start_ai_podcast():
     # Adjust last_upload_time so the remaining cooldown is honored  
     st.session_state["podcast_started"] = False
     st.session_state["last_upload_time"] = datetime.now() - timedelta(seconds=(300 - cooldown_remaining))
+    release_lock()
     st.rerun()
 
 if st.session_state["podcast_started"]:
