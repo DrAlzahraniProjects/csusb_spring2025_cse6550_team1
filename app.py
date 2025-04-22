@@ -29,6 +29,7 @@ cooldown_active = False
 LOCK_FILE = "/tmp/streamlit_app.lock"
 PODCAST_LOCK_TIMEOUT = 180  # 3 minutes
 UPLOAD_COOLDOWN = 300       # 5 minutes
+UPLOAD_TRACKER_DIR = "/tmp/upload_timestamps"
 
 def is_locked():
     try:
@@ -41,7 +42,6 @@ def is_locked():
                     os.remove(LOCK_FILE)
         return False
     except Exception as e:
-        # Log the error or handle gracefully
         return False
 
 def set_lock():
@@ -51,6 +51,23 @@ def set_lock():
 def release_lock():
     if os.path.exists(LOCK_FILE):
         os.remove(LOCK_FILE)
+
+def is_upload_cooldown_active(ip):
+    os.makedirs(UPLOAD_TRACKER_DIR, exist_ok=True)
+    ip_file = os.path.join(UPLOAD_TRACKER_DIR, ip.replace(".", "_") + ".txt")
+
+    if os.path.exists(ip_file):
+        with open(ip_file, "r") as f:
+            last_upload = float(f.read())
+            if time.time() - last_upload < UPLOAD_COOLDOWN:
+                return UPLOAD_COOLDOWN - (time.time() - last_upload)
+    return 0
+
+def update_upload_timestamp(ip):
+    os.makedirs(UPLOAD_TRACKER_DIR, exist_ok=True)
+    ip_file = os.path.join(UPLOAD_TRACKER_DIR, ip.replace(".", "_") + ".txt")
+    with open(ip_file, "w") as f:
+        f.write(str(time.time()))
 
 def speak_text(text, voice="alpha"):
     voice_map = {
@@ -155,6 +172,18 @@ if not is_csusb(user_ip):
     st.warning("Access denied")
     st.stop()
 
+cooldown_remaining = is_upload_cooldown_active(user_ip)
+if cooldown_remaining > 0:
+    cooldown_active = True
+    countdown_placeholder = st.empty()
+    while cooldown_remaining > 0:
+        minutes, seconds = divmod(int(cooldown_remaining), 60)
+        countdown_placeholder.warning(f"\u23f3 Upload locked. Please wait {minutes:02d}:{seconds:02d} to upload a new document.")
+        time.sleep(1)
+        cooldown_remaining -= 1
+    countdown_placeholder.empty()
+    st.rerun()
+
 if is_locked():
     placeholder = st.empty()
     with placeholder.container():
@@ -189,12 +218,12 @@ if (
     st.rerun()
 else:
     potential_file = st.file_uploader("Upload a PDF document (Max: 10MB)", type=["pdf"])
+
 if potential_file:
     if potential_file.size > 10 * 1024 * 1024:
         st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
     else:
         uploaded_file = potential_file
-        st.success("✅ File received! Starting extraction...")
 
         progress = st.progress(0, text="Preparing to extract...")
 
@@ -208,6 +237,7 @@ if potential_file:
                 extracted_text += text
                 progress.progress(int(((i + 1) / num_pages) * 100), text=f"Extracting page {i + 1} of {num_pages}...")
 
+            progress.empty()
             st.success(f"✅ PDF extracted successfully with {num_pages} page(s)!")
         except Exception as e:
             st.error(f"❌ Extraction failed: {e}")
@@ -240,6 +270,7 @@ def start_ai_podcast():
     st.markdown("## 🎙️ Welcome to the AI Podcast")
     messages = []
     start_time = time.time()
+    update_upload_timestamp(user_ip)
     max_duration = 180
 
     try:
@@ -275,15 +306,29 @@ def start_ai_podcast():
     while time.time() - start_time < max_duration:
         context = chunks[chunk_index][:4000]
 
-        if last_beta_response:
+        if last_beta_response and any(p in last_beta_response.lower() for p in ["not sure", "don’t know", "don’t really see", "hard to say"]):
+            # Acknowledge Beta, then pivot
+            chunk_index = (chunk_index + 1) % len(chunks)
+            context = chunks[chunk_index][:4000]
+            alpha_prompt = f"""
+            You're Alpha. Beta wasn't too sure last time, so you're shifting gears.
+            Start by casually acknowledging Beta's uncertainty, then ask something clearly answerable from the doc.
+            Make it conversational and human. Two short sentences max.
+
+            Document:
+            {context}
+
+            Beta just said:
+            {last_beta_response}
+            """
+        elif last_beta_response:
             tone = random.choice(["curious", "amused", "sarcastic", "chill", "deep thinker"])
             alpha_prompt = f"""
             You're Alpha, a podcast host with a {tone} vibe.
-            React to what Beta just said or ask a follow-up. Keep it smooth and natural.
-            Avoid names and labels.
-            Be very brief, three sentences max.
+            Respond naturally to what Beta said, then ask a direct, specific follow-up from the doc.
+            Avoid generic phrasing or stating you're asking a question. Just talk like a human. Keep it snappy.
 
-            Context:
+            Document:
             {context}
 
             Beta just said:
@@ -292,10 +337,9 @@ def start_ai_podcast():
         else:
             alpha_prompt = f"""
             You're Alpha, podcast host. You've already introduced yourself.
-            Now ask a quick, casual, curiosity-driven question about the document.
-            Do not say your name or mention this is the start.
-            Make it sound like you're already in the middle of the show.
-            
+            Dive into a specific, clear point from the doc and ask something about it.
+            Skip greetings, be natural and relaxed like you're already deep in the convo.
+
             Document:
             {context}
             """
