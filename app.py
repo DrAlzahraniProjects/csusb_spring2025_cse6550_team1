@@ -1,7 +1,5 @@
 import streamlit as st
 import os
-import pandas as pd
-import numpy as np
 from langchain.chat_models import init_chat_model
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
 import PyPDF2
@@ -13,7 +11,6 @@ import tempfile
 import edge_tts
 import asyncio
 import base64
-import re
 
 try:
     from mutagen.mp3 import MP3
@@ -158,8 +155,6 @@ chat_beta = init_chat_model("llama3-70b-8192", model_provider="groq")
 
 if "podcast_started" not in st.session_state:
     st.session_state["podcast_started"] = False
-if "conf_matrix" not in st.session_state:
-    st.session_state.conf_matrix = np.array([[0, 0], [0, 0]])
 if "last_upload_time" not in st.session_state:
     st.session_state["last_upload_time"] = None
 if "show_podcast_warning" not in st.session_state:
