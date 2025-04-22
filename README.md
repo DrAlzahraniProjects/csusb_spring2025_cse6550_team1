@@ -10,8 +10,14 @@ Before you begin, ensure you have the following:
 4. **Windows**: Install [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) and enable Docker's WSL integration by following [this guide](https://docs.docker.com/desktop/windows/wsl/).
 
 ---
+### Step 1: Remove the existing code directory completely
 
-### Step 1: Clone the Repository
+Because the local repository can't been updated correctly with the script, you need to remove the directory currently on the system.
+
+```bash
+rm -rf csusb_spring2025_cse6550_team1 
+```
+### Step 2: Clone the Repository
 
 Clone the GitHub repository to your local machine and navigate to that directory:
 
@@ -19,7 +25,7 @@ Clone the GitHub repository to your local machine and navigate to that directory
 git clone https://github.com/DrAlzahraniProjects/csusb_spring2025_cse6550_team1 && cd csusb_spring2025_cse6550_team1
 ```
 
-### Step 2: Set & Run Build Script (enter your Groq API Key when prompted):
+### Step 3: Set & Run Build Script (enter your Groq API Key when prompted):
 
 Run the setup script to build and start the Docker container:
 
@@ -27,7 +33,7 @@ Run the setup script to build and start the Docker container:
 chmod +x docker-launch.sh && ./docker-launch.sh
 ```
 
-### Step 3: Access the Chatbot
+### Step 4: Access the Chatbot
 
 For local:
 
