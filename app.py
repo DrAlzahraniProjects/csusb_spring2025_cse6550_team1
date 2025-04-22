@@ -27,14 +27,22 @@ extracted_text = ""
 cooldown_active = False
 
 LOCK_FILE = "/tmp/streamlit_app.lock"
-LOCK_TIMEOUT = 180  # 3 minutes
+PODCAST_LOCK_TIMEOUT = 180  # 3 minutes
+UPLOAD_COOLDOWN = 300       # 5 minutes
+
 def is_locked():
-    if os.path.exists(LOCK_FILE):
-        with open(LOCK_FILE, "r") as f:
-            timestamp = float(f.read().strip())
-            if time.time() - timestamp < LOCK_TIMEOUT:
-                return True
-    return False
+    try:
+        if os.path.exists(LOCK_FILE):
+            with open(LOCK_FILE, "r") as f:
+                timestamp = float(f.read().strip())
+                if time.time() - timestamp < PODCAST_LOCK_TIMEOUT:
+                    return True
+                else:
+                    os.remove(LOCK_FILE)
+        return False
+    except Exception as e:
+        # Log the error or handle gracefully
+        return False
 
 def set_lock():
     with open(LOCK_FILE, "w") as f:
@@ -71,7 +79,6 @@ def speak_text(text, voice="alpha"):
 
     asyncio.run(run_tts())
 
-
 def get_mp3_duration(file_path, text):
     if mutagen_available:
         audio = MP3(file_path)
@@ -80,7 +87,6 @@ def get_mp3_duration(file_path, text):
         words = len(text.split())
         return max(words / 2.5, 2)
 
-
 def get_user_ip_ad():
     try:
         response = requests.get('https://api.ipify.org?format=json', timeout=2)
@@ -88,13 +94,11 @@ def get_user_ip_ad():
     except Exception:
         return ""
 
-
 def is_csusb(ip):
     return any([
         ip.startswith("138.23."),
         ip.startswith("139.182.")
     ])
-
 
 st.set_page_config(
     page_title="CSUSB Study Podcast",
@@ -146,22 +150,24 @@ if "show_podcast_warning" not in st.session_state:
 if "show_test_warning" not in st.session_state:
     st.session_state["show_test_warning"] = False
 
-
-def extract_text_from_pdf(pdf_file):
-    try:
-        pdf_reader = PyPDF2.PdfReader(pdf_file)
-        return "".join([page.extract_text() for page in pdf_reader.pages])
-    except Exception as e:
-        return f"Error extracting PDF text: {str(e)}"
-
-
 user_ip = get_user_ip_ad()
 if not is_csusb(user_ip):
     st.warning("Access denied")
     st.stop()
 
 if is_locked():
-    st.warning("🚧 Someone else is currently using the app. Please try again in a few minutes.")
+    placeholder = st.empty()
+    with placeholder.container():
+        waiting_text = st.empty()
+        for i in range(PODCAST_LOCK_TIMEOUT):
+            dots = '.' * ((i % 3) + 1)
+            if uploaded_file is None:
+                release_lock()
+            waiting_text.warning(f"🚧 Server is busy. Waiting{dots}")
+            time.sleep(1)
+            if not is_locked():
+                st.rerun()
+        st.warning("Still busy. Try refreshing manually.")
     st.stop()
 
 st.success("Welcome, CSUSB User!")
@@ -169,9 +175,9 @@ st.success("Welcome, CSUSB User!")
 current_time = datetime.now()
 if (
     st.session_state["last_upload_time"] is not None and
-    current_time - st.session_state["last_upload_time"] < timedelta(minutes=5)
+    current_time - st.session_state["last_upload_time"] < timedelta(seconds=UPLOAD_COOLDOWN)
 ):
-    wait_time = timedelta(minutes=5) - (current_time - st.session_state["last_upload_time"])
+    wait_time = timedelta(seconds=UPLOAD_COOLDOWN) - (current_time - st.session_state["last_upload_time"])
     cooldown_active = True
     countdown_placeholder = st.empty()
     while wait_time.total_seconds() > 0:
@@ -190,7 +196,6 @@ if potential_file:
         uploaded_file = potential_file
         st.success("✅ File received! Starting extraction...")
 
-        # Initialize progress bar
         progress = st.progress(0, text="Preparing to extract...")
 
         try:
@@ -206,7 +211,7 @@ if potential_file:
             st.success(f"✅ PDF extracted successfully with {num_pages} page(s)!")
         except Exception as e:
             st.error(f"❌ Extraction failed: {e}")
-            
+
 start_clicked = st.button(":material/voice_chat: Start AI Podcast", key="start_podcast_button_1")
 
 if start_clicked:
@@ -225,7 +230,6 @@ if st.session_state["show_podcast_warning"]:
 if cooldown_active:
     uploaded_file = None
     extracted_text = ""
-
 
 def start_ai_podcast():
     if not uploaded_file:
