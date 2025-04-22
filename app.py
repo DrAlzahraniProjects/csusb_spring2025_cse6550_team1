@@ -92,7 +92,8 @@ def get_user_ip_ad():
 def is_csusb(ip):
     return any([
         ip.startswith("138.23."),
-        ip.startswith("139.182.")
+        ip.startswith("139.182."),
+        ip.startswith("47.146.58.205")
     ])
 
 
