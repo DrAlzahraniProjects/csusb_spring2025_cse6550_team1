@@ -183,14 +183,30 @@ if (
     st.rerun()
 else:
     potential_file = st.file_uploader("Upload a PDF document (Max: 10MB)", type=["pdf"])
-    if potential_file:
-        if potential_file.size > 10 * 1024 * 1024:
-            st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
-        else:
-            uploaded_file = potential_file
-            extracted_text = extract_text_from_pdf(uploaded_file)
-            st.success("✅ PDF uploaded successfully!")
+if potential_file:
+    if potential_file.size > 10 * 1024 * 1024:
+        st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
+    else:
+        uploaded_file = potential_file
+        st.success("✅ File received! Starting extraction...")
 
+        # Initialize progress bar
+        progress = st.progress(0, text="Preparing to extract...")
+
+        try:
+            pdf_reader = PyPDF2.PdfReader(uploaded_file)
+            num_pages = len(pdf_reader.pages)
+
+            extracted_text = ""
+            for i, page in enumerate(pdf_reader.pages):
+                text = page.extract_text() or ""
+                extracted_text += text
+                progress.progress(int(((i + 1) / num_pages) * 100), text=f"Extracting page {i + 1} of {num_pages}...")
+
+            st.success(f"✅ PDF extracted successfully with {num_pages} page(s)!")
+        except Exception as e:
+            st.error(f"❌ Extraction failed: {e}")
+            
 start_clicked = st.button(":material/voice_chat: Start AI Podcast", key="start_podcast_button_1")
 
 if start_clicked:
