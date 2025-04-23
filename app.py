@@ -148,7 +148,7 @@ with col2:
             <div style='line-height: 1.2;'>
                 <h3 style='font-size: 22px; margin: 0px;'>CSUSB Study Podcast Assistant</h3>
                 <p style='font-size: 14px; margin: 2px 0 0 0; color: gray;'>
-                    Study Podcast Assistant that converts documents into engaging, conversational podcasts with AI-powered explanations to enhance comprehension and knowledge extraction
+                    Study Podcast Assistant that converts PDF documents into engaging AI conversations
                 </p>
             </div>
         """, unsafe_allow_html=True)
