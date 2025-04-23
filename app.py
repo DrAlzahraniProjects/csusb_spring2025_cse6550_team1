@@ -138,12 +138,21 @@ div[data-testid="stFileUploader"] div[aria-live="polite"] {
 """, unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns([1, 3, 1])
+
 with col2:
     col_img, col_text = st.columns([0.2, 1])
     with col_img:
         st.image("./logo/csusb_logo.png", width=60)
     with col_text:
-        st.markdown("<h3 style='font-size: 22px; margin: 0px;'>CSUSB Study Podcast Assistant</h3>", unsafe_allow_html=True)
+        st.markdown("""
+            <div style='line-height: 1.2;'>
+                <h3 style='font-size: 22px; margin: 0px;'>CSUSB Study Podcast Assistant</h3>
+                <p style='font-size: 14px; margin: 2px 0 0 0; color: gray;'>
+                    Study Podcast Assistant that converts documents into engaging, conversational podcasts with AI-powered explanations to enhance comprehension and knowledge extraction
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+
 
 apik = os.environ["GROQ_API_KEY"]
 if not apik:
