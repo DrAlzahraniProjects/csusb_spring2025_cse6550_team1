@@ -1,4 +1,4 @@
 Sharukh: Updated google colab with the latest changes
 Dwaraka: Updated architecture design with the latest changes
 Jacob: Added Chatbot Flowchart Diagram and updated Google Colab to Professor Specifications
-Dwaraka: Updated architecture design with the latest changes
+Dwaraka: Updated architecture diagram with the latest changes
