@@ -66,10 +66,10 @@ def update_upload_timestamp(ip):
     with open(ip_file, "w") as f:
         f.write(str(time.time()))
 
-def speak_text(text, voice="alpha"):
+def speak_text(text, voice="Teacher"):
     voice_map = {
-        "alpha": "en-US-JennyNeural",
-        "beta": "en-GB-RyanNeural",
+        "Teacher": "en-US-JennyNeural",
+        "Student": "en-GB-RyanNeural",
     }
     real_voice = voice_map.get(voice, "en-US-JennyNeural")
 
@@ -159,8 +159,8 @@ if not apik:
     st.error("Error: Please set your GROQ_API_Key variable.")
     st.stop()
 
-chat_alpha = init_chat_model("llama3-8b-8192", model_provider="groq")
-chat_beta = init_chat_model("llama3-70b-8192", model_provider="groq")
+chat_Teacher = init_chat_model("llama3-8b-8192", model_provider="groq")
+chat_Student = init_chat_model("llama3-70b-8192", model_provider="groq")
 
 if "podcast_started" not in st.session_state:
     st.session_state["podcast_started"] = False
@@ -293,54 +293,54 @@ def start_ai_podcast():
     context = extracted_text[:4000]
 
     intro_prompt = f"""
-    You're Alpha, kicking off a casual podcast with your co-host Beta.
+    You're Teacher, kicking off a casual podcast with your co-host Student.
     Say hi, drop your name, and mention you're diving into a doc together.
     Keep it under 2 sentences. Make it relaxed, friendly, not robotic.
 
     Document:
     {context}
     """
-    intro = chat_alpha.invoke([HumanMessage(content=intro_prompt)]).content.strip()
-    st.markdown(f"**Alpha:** {intro}")
-    speak_text(intro, voice="alpha")
+    intro = chat_Teacher.invoke([HumanMessage(content=intro_prompt)]).content.strip()
+    st.markdown(f"**Teacher:** {intro}")
+    speak_text(intro, voice="Teacher")
 
     st.markdown("---")
-    last_beta_response = None
+    last_Student_response = None
 
     while time.time() - start_time < max_duration:
         context = chunks[chunk_index][:4000]
 
-        if last_beta_response and any(p in last_beta_response.lower() for p in ["not sure", "don’t know", "don’t really see", "hard to say"]):
+        if last_Student_response and any(p in last_Student_response.lower() for p in ["not sure", "don’t know", "don’t really see", "hard to say"]):
             # Acknowledge Beta, then pivot
             chunk_index = (chunk_index + 1) % len(chunks)
             context = chunks[chunk_index][:4000]
-            alpha_prompt = f"""
-            You're Alpha. Beta wasn't too sure last time, so you're shifting gears.
-            Start by casually acknowledging Beta's uncertainty, then ask something clearly answerable from the doc.
+            Teacher_prompt = f"""
+            You're Teacher. Student wasn't too sure last time, so you're shifting gears.
+            Start by casually acknowledging Student's uncertainty, then ask something clearly answerable from the doc.
             Make it conversational and human. Two short sentences max.
 
             Document:
             {context}
 
-            Beta just said:
-            {last_beta_response}
+            Student just said:
+            {last_Student_response}
             """
-        elif last_beta_response:
+        elif last_Student_response:
             tone = random.choice(["curious", "amused", "sarcastic", "chill", "deep thinker"])
-            alpha_prompt = f"""
-            You're Alpha, a podcast host with a {tone} vibe.
-            Respond naturally to what Beta said, then ask a direct, specific follow-up from the doc.
+            Teacher_prompt = f"""
+            You're Teacher, a podcast host with a {tone} vibe.
+            Respond naturally to what Student said, then ask a direct, specific follow-up from the doc.
             Avoid generic phrasing or stating you're asking a question. Just talk like a human. Keep it snappy.
 
             Document:
             {context}
 
-            Beta just said:
-            {last_beta_response}
+            Student just said:
+            {last_Student_response}
             """
         else:
-            alpha_prompt = f"""
-            You're Alpha, podcast host. You've already introduced yourself.
+            Teacher_prompt = f"""
+            You're Teacher, podcast host. You've already introduced yourself.
             Dive into a specific, clear point from the doc and ask something about it.
             Skip greetings, be natural and relaxed like you're already deep in the convo.
 
@@ -348,49 +348,49 @@ def start_ai_podcast():
             {context}
             """
 
-        alpha_question = chat_alpha.invoke([HumanMessage(content=alpha_prompt)]).content.strip()
-        st.markdown(f"**Alpha:** {alpha_question}")
-        speak_text(alpha_question, voice="alpha")
+        Teacher_question = chat_Teacher.invoke([HumanMessage(content=Teacher_prompt)]).content.strip()
+        st.markdown(f"**Teacher:** {Teacher_question}")
+        speak_text(Teacher_question, voice="Teacher")
 
-        beta_prompt = f"""
-        You're Beta, the podcast co-host. Answer Alpha's question based ONLY on the doc below.
+        Student_prompt = f"""
+        You're Student, the podcast co-host. Answer Teacher's question based ONLY on the doc below.
         Keep it short, conversational. If unsure, say something casual like 'Not sure on that one.'
 
         Document:
         {context}
 
-        Alpha asked:
-        {alpha_question}
+        Teacher asked:
+        {Teacher_question}
         """
 
-        beta_response = chat_beta.invoke([SystemMessage(content=beta_prompt)]).content.strip()
+        Student_response = chat_Student.invoke([SystemMessage(content=Student_prompt)]).content.strip()
 
-        if beta_response.lower() in ["i don't know", "i do not know", "i'm not sure"]:
-            beta_response = random.choice([
+        if Student_response.lower() in ["i don't know", "i do not know", "i'm not sure"]:
+            Student_response = random.choice([
                 "Hmm, I’m not totally sure about that.",
                 "Yeah, that’s not really clear in the doc.",
                 "Hard to say, honestly.",
                 "Not sure on that one."
             ])
 
-        st.markdown(f"**Beta:** {beta_response}")
-        speak_text(beta_response, voice="beta")
+        st.markdown(f"**Student:** {Student_response}")
+        speak_text(Student_response, voice="Student")
 
-        last_beta_response = beta_response
+        last_Student_response = Student_response
         chunk_index = (chunk_index + 1) % len(chunks)
 
     outro_prompt = f"""
-    You're Alpha, the podcast host. End the podcast in one short sentence.
-    Thank Beta and the audience, and casually mention the topic of the doc.
+    You're Teacher, the podcast host. End the podcast in one short sentence.
+    Thank Student and the audience, and casually mention the topic of the doc.
     Make it smooth, brief, and natural — max 20 words.
 
     Document context:
     {context[:2000]}
     """
-    outro = chat_alpha.invoke([HumanMessage(content=outro_prompt)]).content.strip()
+    outro = chat_Teacher.invoke([HumanMessage(content=outro_prompt)]).content.strip()
 
-    st.markdown(f"**Alpha:** {outro}")
-    speak_text(outro, voice="alpha")
+    st.markdown(f"**Teacher:** {outro}")
+    speak_text(outro, voice="Teacher")
 
     # Mark podcast as ended and trigger cooldown with adjusted time
     podcast_duration = time.time() - start_time
