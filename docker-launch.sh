@@ -5,11 +5,6 @@ CONT_NAME="team1s25-app"
 PORT_NUM=2501
 J_PORTNUM=2511
 
-#Pull latest Code
-git pull origin main
-
-#Run Access for Cleanup Script
-chmod +x docker-clean.sh
 
 
 # Asks for API Key from User
