@@ -7,3 +7,13 @@ streamlit
 jupyter
 llama-index
 openai
+<<<<<<< Updated upstream
+=======
+PyPDF2
+pandas
+numpy
+requests
+edge-tts
+mutagen
+scikit-learn
+>>>>>>> Stashed changes

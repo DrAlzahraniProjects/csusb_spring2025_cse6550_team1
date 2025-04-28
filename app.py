@@ -6,176 +6,474 @@ import pandas as pd
 import numpy as np
 from langchain.chat_models import init_chat_model
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 import PyPDF2
 import time
-from docx import Document
+import random
+from datetime import datetime, timedelta
+import requests
+import tempfile
+import edge_tts
+import asyncio
+import base64
 
-# Initialize API key
-apik = os.getenv("GROQ_API_KEY")
+try:
+    from mutagen.mp3 import MP3
+    mutagen_available = True
+except ImportError:
+    mutagen_available = False
+
+CHUNK_SIZE = 1000  # characters
+TOP_K = 3  # number of top matching chunks to pull
+uploaded_file = None  # initialize early
+extracted_text = ""
+
+cooldown_active = False
+test_mode = False
+
+
+LOCK_FILE = "/tmp/streamlit_app.lock"
+PODCAST_LOCK_TIMEOUT = 180  # 3 minutes
+UPLOAD_COOLDOWN = 300       # 5 minutes
+UPLOAD_TRACKER_DIR = "/tmp/upload_timestamps"
+
+def is_locked():
+    try:
+        if os.path.exists(LOCK_FILE):
+            with open(LOCK_FILE, "r") as f:
+                timestamp = float(f.read().strip())
+                if time.time() - timestamp < PODCAST_LOCK_TIMEOUT:
+                    return True
+                else:
+                    os.remove(LOCK_FILE)
+        return False
+    except Exception as e:
+        return False
+
+def set_lock():
+    with open(LOCK_FILE, "w") as f:
+        f.write(str(time.time()))
+
+def release_lock():
+    if os.path.exists(LOCK_FILE):
+        os.remove(LOCK_FILE)
+
+def is_upload_cooldown_active(ip):
+    os.makedirs(UPLOAD_TRACKER_DIR, exist_ok=True)
+    ip_file = os.path.join(UPLOAD_TRACKER_DIR, ip.replace(".", "_") + ".txt")
+
+    if os.path.exists(ip_file):
+        with open(ip_file, "r") as f:
+            last_upload = float(f.read())
+            if time.time() - last_upload < UPLOAD_COOLDOWN:
+                return UPLOAD_COOLDOWN - (time.time() - last_upload)
+    return 0
+
+def update_upload_timestamp(ip):
+    os.makedirs(UPLOAD_TRACKER_DIR, exist_ok=True)
+    ip_file = os.path.join(UPLOAD_TRACKER_DIR, ip.replace(".", "_") + ".txt")
+    with open(ip_file, "w") as f:
+        f.write(str(time.time()))
+
+def chunk_text(text, chunk_size=1000):
+    return [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+
+def retrieve_chunks(question, chunks, top_k=3):
+    vectorizer = TfidfVectorizer().fit(chunks + [question])
+    chunk_vectors = vectorizer.transform(chunks)
+    question_vector = vectorizer.transform([question])
+    sims = cosine_similarity(question_vector, chunk_vectors).flatten()
+    top_indices = sims.argsort()[-top_k:][::-1]
+    return [chunks[i] for i in top_indices]
+
+def speak_text(text, voice="Teacher"):
+    voice_map = {
+        "Teacher": "en-US-JennyNeural",
+        "Student": "en-GB-RyanNeural",
+    }
+    real_voice = voice_map.get(voice, "en-US-JennyNeural")
+
+    async def run_tts():
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmpfile:
+            communicate = edge_tts.Communicate(text, real_voice, rate="+10%")
+            await communicate.save(tmpfile.name)
+
+            with open(tmpfile.name, "rb") as audio_file:
+                audio_bytes = audio_file.read()
+                b64_audio = base64.b64encode(audio_bytes).decode()
+
+            st.markdown(f"""
+                <audio autoplay>
+                    <source src="data:audio/mp3;base64,{b64_audio}" type="audio/mp3">
+                </audio>
+            """, unsafe_allow_html=True)
+
+            duration = get_mp3_duration(tmpfile.name, text)
+            time.sleep(duration)
+
+    asyncio.run(run_tts())
+
+def get_mp3_duration(file_path, text):
+    if mutagen_available:
+        audio = MP3(file_path)
+        return audio.info.length
+    else:
+        words = len(text.split())
+        return max(words / 2.5, 2)
+
+def get_user_ip_ad():
+    try:
+        response = requests.get('https://api.ipify.org?format=json', timeout=2)
+        return response.json().get("ip", "")
+    except Exception:
+        return ""
+
+def is_csusb(ip):
+    return any([
+        ip.startswith("138.23."),
+        ip.startswith("139.182.")
+    ])
+
+st.set_page_config(
+    page_title="CSUSB Study Podcast",
+    page_icon="./logo/csusb_logo.png",
+)
+
+st.markdown("""
+<style>
+div[data-testid="stFileUploader"] div[aria-live="polite"] {
+    display: none !important;
+}
+.stButton button { width: 100%; }
+.submit-button-container {
+    display: flex;
+    align-items: flex-end;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+}
+.stTextInput > div > div > input {
+    padding-bottom: 0 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+col1, col2, col3 = st.columns([1, 3, 1])
+
+with col2:
+    col_img, col_text = st.columns([0.2, 1])
+    with col_img:
+        st.image("./logo/csusb_logo.png", width=60)
+    with col_text:
+        st.markdown("""
+            <div style='line-height: 1.2;'>
+                <h3 style='font-size: 22px; margin: 0px;'>CSUSB Study Podcast Assistant</h3>
+                <p style='font-size: 14px; margin: 2px 0 0 0; color: gray;'>
+                    Study Podcast Assistant that converts PDF documents into engaging AI conversations
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+
+
+apik = os.environ["GROQ_API_KEY"]
+
 if not apik:
     st.error("Error: Please set your GROQ_API_Key variable.")
     st.stop()
-    
-# Initialize two different Llama3 models
-chat_alpha = init_chat_model("llama3-8b-8192", model_provider="groq")  # Alpha's model
-chat_beta = init_chat_model("llama3-70b-8192", model_provider="groq")  # Beta's model
-messages = [SystemMessage(content="You are an AI assistant that will help.")]
 
-recognizer = sr.Recognizer()
+if "test_mode" not in st.session_state:
+    test_mode = False
+    if apik.endswith("_TEST"):
+        test_mode = True
+        os.environ["GROQ_API_KEY"] = apik[:-5]  # update env var to the clean key
+    st.session_state["test_mode"] = test_mode
+else:
+    test_mode = st.session_state["test_mode"]
 
-# Function to listen to microphone input
-def listen_to_microphone(command_flag):
-    with sr.Microphone() as source:
-        recognizer.adjust_for_ambient_noise(source)
-        audio = recognizer.listen(source)
-        try:
-            command_flag.append(recognizer.recognize_google(audio).lower())
-        except sr.UnknownValueError:
-            command_flag.append("Sorry, I couldn't understand that.")
-        except sr.RequestError:
-            command_flag.append("Sorry, I'm unable to process the request at the moment.")
+if "test_mode" not in st.session_state:
+    st.info("🚀 Test Mode Active - No IP checks, manual Student questions enabled.")
 
-# Extract text from PDF
-def extract_text_from_pdf(pdf_file):
-    try:
-        pdf_reader = PyPDF2.PdfReader(pdf_file)
-        return "".join([page.extract_text() for page in pdf_reader.pages])
-    except Exception as e:
-        return f"Error extracting PDF text: {str(e)}"
+chat_Teacher = init_chat_model("llama3-8b-8192", model_provider="groq")
+chat_Student = init_chat_model("llama3-70b-8192", model_provider="groq")
 
-# Extract text from DOCX
-def extract_text_from_docx(docx_file):
-    try:
-        doc = Document(docx_file)
-        return "\n".join([para.text for para in doc.paragraphs])
-    except Exception as e:
-        return f"Error extracting DOCX text: {str(e)}"
+if "podcast_started" not in st.session_state:
+    st.session_state["podcast_started"] = False
+if "last_upload_time" not in st.session_state:
+    st.session_state["last_upload_time"] = None
+if "show_podcast_warning" not in st.session_state:
+    st.session_state["show_podcast_warning"] = False
+if "show_test_warning" not in st.session_state:
+    st.session_state["show_test_warning"] = False
 
-# Define prompts for both document-based and model-based communication
-def get_document_based_prompt(extracted_text, user_query):
-    return f"""
-    You are an AI assistant. The following is the content extracted from a document uploaded by the user. Use this extracted text to respond to the user's queries. Please do not generate answers outside of the provided document text.
+user_ip = get_user_ip_ad()
+if not test_mode:
+    user_ip = get_user_ip_ad()
+    if not is_csusb(user_ip):
+        st.warning("Access denied")
+        st.stop()
 
-    Extracted Document Text:
-    {extracted_text}
+if not test_mode:
+    cooldown_remaining = is_upload_cooldown_active(user_ip)
+    if cooldown_remaining > 0:
+        cooldown_active = True
+        countdown_placeholder = st.empty()
+        while cooldown_remaining > 0:
+            minutes, seconds = divmod(int(cooldown_remaining), 60)
+            countdown_placeholder.warning(f"\u23f3 Upload locked. Please wait {minutes:02d}:{seconds:02d} to upload a new document.")
+            time.sleep(1)
+            cooldown_remaining -= 1
+        countdown_placeholder.empty()
+        st.rerun()
 
-    User Query: {user_query}
+if is_locked():
+    placeholder = st.empty()
+    with placeholder.container():
+        waiting_text = st.empty()
+        for i in range(PODCAST_LOCK_TIMEOUT):
+            dots = '.' * ((i % 3) + 1)
+            if uploaded_file is None:
+                release_lock()
+            waiting_text.warning(f"🚧 Server is busy. Waiting{dots}")
+            time.sleep(1)
+            if not is_locked():
+                st.rerun()
+        st.warning("Still busy. Try refreshing manually.")
+    st.stop()
 
-    Please provide the most relevant response from the document above.
-    """
+st.success("Welcome, CSUSB User!")
 
-def get_model_based_prompt(user_query):
-    return f"""
-    You are an AI assistant with general knowledge. Please respond to the user's query based on your pre-trained knowledge. Do not refer to any uploaded documents or extracted text unless explicitly instructed.
-
-    User Query: {user_query}
-
-    Please provide the most relevant and accurate response based on your training.
-    """
-
-# Initialize confusion matrix
-if 'conf_matrix' not in st.session_state:
-    st.session_state.conf_matrix = np.array([[0, 0], [0, 0]])
-
-# AI Podcast Conversation
-def start_ai_podcast():
-    questions = [
-        "What CSUSB class assists with creating a podcast?",
-        "Who is the current president of CSUSB?",
-        "What do I need to start a podcast?",
-        "What is the deadline to apply to CSUSB for Fall 2025?",
-        "What is the best mic to start a podcast?",
-        "When do I need to submit my paper for my CSE 6550 class?",
-        "What is the best way to format a podcast?",
-        "When will a CSUSB podcast workshop be held?",
-        "Where can I upload my podcast for listening?",
-        "When is the next CSUSB Podcast class open?"
-    ]   
-
-    for i, question in enumerate(questions):
-        st.write(f"**Alpha:** {question}")
+current_time = datetime.now()
+if (
+    st.session_state["last_upload_time"] is not None and
+    current_time - st.session_state["last_upload_time"] < timedelta(seconds=UPLOAD_COOLDOWN)
+):
+    wait_time = timedelta(seconds=UPLOAD_COOLDOWN) - (current_time - st.session_state["last_upload_time"])
+    cooldown_active = True
+    countdown_placeholder = st.empty()
+    while wait_time.total_seconds() > 0:
+        minutes, seconds = divmod(int(wait_time.total_seconds()), 60)
+        countdown_placeholder.warning(f"⏳ Upload locked. Please wait {minutes:02d}:{seconds:02d} to upload a new document.")
         time.sleep(1)
+        wait_time -= timedelta(seconds=1)
+    countdown_placeholder.empty()
+    st.rerun()
+else:
+    potential_file = st.file_uploader("Upload a PDF document (Max: 10MB)", type=["pdf"])
 
-        # Show "Beta is thinking..." message
-        thinking_text = st.empty()
-        thinking_text.write("**Beta is thinking...**")
-        time.sleep(2)
-
-        # Select the model based on index
-        messages.append(HumanMessage(content=question))
-        response = chat_alpha.invoke(messages) if i % 2 == 0 else chat_beta.invoke(messages)
-        ai_response = response.content if response else "I do not know!"
-        ai_response_summary = " ".join(ai_response.splitlines()[:5])
-
-        messages.append(AIMessage(content=ai_response_summary))
-        thinking_text.empty()
-        st.write(f"**Beta:** {ai_response_summary}")
-        st.markdown("---")
-
-        # Update confusion matrix based on correctness
-        if ai_response != "I do not know!":
-            st.session_state.conf_matrix[0, 0] += 1  # True Positive
-        else:
-            st.session_state.conf_matrix[1, 0] += 1  # False Negative
-
-        time.sleep(5)
-
-# Header Section
-col1, col2 = st.columns([1, 3])
-with col1:
-    st.image(r"logo/csusb_logo.png", width=100)
-with col2:
-    st.markdown("<h1 style='text-align: center;'>CSUSB Study Podcast Assistant</h1>", unsafe_allow_html=True)
-
-# File Upload Section
-uploaded_file = st.file_uploader("Upload a document (PDF, DOCX)", type=["pdf", "docx"])
-extracted_text = ""
-
-if uploaded_file:
-    extracted_text = extract_text_from_pdf(uploaded_file) if uploaded_file.type == "application/pdf" else extract_text_from_docx(uploaded_file)
-
-if st.button("Process Extracted Text"):
-    if extracted_text:
-        messages.append(HumanMessage(content=extracted_text))
-        response = chat_alpha.invoke(messages)  # Using Alpha model
-        ai_response = response.content if response else "I do not know!"
-        ai_response_summary = " ".join(ai_response.splitlines()[:5])
-        messages.append(AIMessage(content=ai_response_summary))
-        st.write(f"**Extracted Text:** {extracted_text}")
-        st.write(f"**AI Response:** {ai_response_summary}")
+if potential_file:
+    if potential_file.size > 10 * 1024 * 1024:
+        st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
     else:
-        st.warning("No text extracted to process.")
+        uploaded_file = potential_file
 
-# Chatbot Input for Document-based or Model-based Communication
-user_input = st.text_input("Ask the Chatbot a Question (Document-based or Model-based)", key="chat_input")
-if st.button("Submit", key="submit_button_1"):
-    prompt = get_document_based_prompt(extracted_text, user_input) if uploaded_file else get_model_based_prompt(user_input)
-    response = chat_alpha.invoke([SystemMessage(content=prompt)]) if uploaded_file else chat_beta.invoke([SystemMessage(content=prompt)])
-    ai_response = response.content if response else "I do not know!"
-    st.write(f"**User:** {user_input}")
-    st.write(f"**AI Response:** {ai_response}")
+        progress = st.progress(0, text="Preparing to extract...")
 
-    # Update confusion matrix
-    if "I do not know!" in ai_response:
-        st.session_state.conf_matrix[1, 0] += 1
+        try:
+            pdf_reader = PyPDF2.PdfReader(uploaded_file)
+            num_pages = len(pdf_reader.pages)
+
+            extracted_text = ""
+            for i, page in enumerate(pdf_reader.pages):
+                text = page.extract_text() or ""
+                extracted_text += text
+                doc_chunks = chunk_text(extracted_text)
+
+                progress.progress(int(((i + 1) / num_pages) * 100), text=f"Extracting page {i + 1} of {num_pages}...")
+
+            progress.empty()
+            st.success(f"✅ PDF extracted successfully with {num_pages} page(s)!")
+        except Exception as e:
+            st.error(f"❌ Extraction failed: {e}")
+
+start_clicked = st.button(":material/voice_chat: Start AI Podcast", key="start_podcast_button_1")
+
+if test_mode:
+    st.markdown("---")
+    st.header("👨‍🏫 Test Mode Active: Ask the Student")
+
+    if uploaded_file:
+        if "test_session" not in st.session_state:
+            st.session_state["test_session"] = []
+
+        user_question = st.text_input("Enter your question for Student:")
+
+        if st.button("Ask Student"):
+            relevant_chunks = retrieve_chunks(user_question, doc_chunks)
+            context = "\n\n".join(relevant_chunks)
+
+            chat_Student = init_chat_model("llama3-70b-8192", model_provider="groq")
+
+            student_prompt = f"""
+            You are Student. Answer ONLY based on the document below.
+            If the answer is unclear, say 'The document doesn't clearly say.'
+            Prefer quoting the document where possible. No guessing allowed.
+
+            Document:
+            {context}
+
+            Teacher asked:
+            {user_question}
+            """.strip()
+
+            student_answer = chat_Student.invoke([SystemMessage(content=student_prompt)]).content.strip()
+
+            if student_answer.lower() in ["i don't know", "i do not know", "i'm not sure"]:
+                student_answer = random.choice([
+                    "Hmm, not really sure.",
+                    "Yeah, that’s kinda unclear.",
+                    "Not sure on that one."
+                ])
+
+            st.session_state["test_session"].append((user_question, student_answer))
+
+    if "test_session" in st.session_state:
+        for q, a in st.session_state["test_session"]:
+            st.markdown(f"**Teacher asked:** {q}")
+            st.markdown(f"**Student answered:** {a}")
+
+if start_clicked:
+    st.session_state["show_test_warning"] = False
+    if not uploaded_file:
+        st.session_state["show_podcast_warning"] = True
     else:
-        st.session_state.conf_matrix[0, 0] += 1
+        set_lock()
+        st.session_state["podcast_started"] = True
+        st.session_state["last_upload_time"] = datetime.now()
+        st.session_state["show_podcast_warning"] = False
 
-# Podcast Start Buttons
-col1, col2 = st.columns(2)
-with col1:
-    if st.button("Start AI Podcast (Click)", key="start_podcast_button_1"):
-        start_ai_podcast()
+if st.session_state["show_podcast_warning"]:
+    st.warning("🚨 Please upload a PDF before starting the podcast.")
 
-with col2:
-    podcast_command_flag = []
-    if st.button("Start AI Podcast (Say: Start Podcast!)", key="start_podcast_voice_command_button"):
-        listening_thread = threading.Thread(target=listen_to_microphone, args=(podcast_command_flag,))
-        listening_thread.start()
-        listening_thread.join()
-        podcast_command = podcast_command_flag[0] if podcast_command_flag else ""
-        if "start podcast" in podcast_command:
-            st.write("Podcast starting...")
-            start_ai_podcast()
+if cooldown_active:
+    uploaded_file = None
+    extracted_text = ""
+
+def start_ai_podcast():
+    if not uploaded_file:
+        st.warning("🛑 PDF has been removed. Ending podcast.")
+        st.session_state["podcast_started"] = False
+        return
+
+    st.markdown("## 🎙️ Welcome to the AI Podcast")
+    messages = []
+    start_time = time.time()
+    update_upload_timestamp(user_ip)
+    max_duration = 180
+
+    try:
+        reader = PyPDF2.PdfReader(uploaded_file)
+        extracted_text = ""
+        for page in reader.pages:
+            extracted_text += page.extract_text() or ""
+        doc_chunks = chunk_text(extracted_text)
+    except Exception as e:
+        st.warning("🛑 PDF is no longer available or readable. Ending podcast.")
+        st.session_state["podcast_started"] = False
+        return
+
+    if not doc_chunks:
+        st.warning("No readable content found in the uploaded PDF.")
+        return
+    
+    intro_context = extracted_text[:500]
+
+    intro_prompt = f= f"""
+            You're Teacher, opening a short 3-minute podcast. Greet Student quickly and dive into the topic.
+            Mention that today's topic is based on an interesting paper.
+            Keep it friendly and relaxed, no more than two sentences.
+            Document:
+            {intro_context}
+            """.strip()
+    
+    intro = chat_Teacher.invoke([HumanMessage(content=intro_prompt)]).content.strip()
+    st.markdown(f"**Teacher:** {intro}")
+    speak_text(intro, voice="Teacher")
+
+    chunk_index = 1
+
+    good_chunks = [chunk for chunk in doc_chunks if len(chunk) > 400]
+    context = good_chunks[chunk_index]
+
+    st.markdown("---")
+    last_Student_response = None
+
+    while time.time() - start_time < max_duration:
+        if last_Student_response:
+            context = good_chunks[chunk_index]
+
+            Teacher_prompt = f"""
+            You're Teacher. Acknowledge Student's last answer briefly, then immediately pivot to a new topic from the document.
+            Ask a direct and specific question based on the document content below.
+            Keep it very short and casual. No long commentary
+            Student said:
+            {last_Student_response}
+            Document:
+            {context}
+            """.strip()
         else:
-            st.write(f"Command '{podcast_command}' not recognized for podcast start.")
+            Teacher_prompt = f"""
+            You're Teacher, podcast host. You've already introduced yourself.
+            Dive into a specific, clear point from the doc and ask something about it.
+            Skip greetings, be natural and relaxed like you're already deep in the convo.
+
+            Document:
+            {context}
+            """
+
+        Teacher_question = chat_Teacher.invoke([HumanMessage(content=Teacher_prompt)]).content.strip()
+        st.markdown(f"**Teacher:** {Teacher_question}")
+        speak_text(Teacher_question, voice="Teacher")
+
+        Student_prompt = f"""
+        You're Student, the podcast co-host. Answer Teacher's question based ONLY on the doc below.
+        Keep it short, conversational. If unsure, say something casual like 'Not sure on that one.'
+
+        Document:
+        {context}
+
+        Teacher asked:
+        {Teacher_question}
+        """
+
+        Student_response = chat_Student.invoke([SystemMessage(content=Student_prompt)]).content.strip()
+
+        if Student_response.lower() in ["i don't know", "i do not know", "i'm not sure"]:
+            Student_response = random.choice([
+                "Hmm, I’m not totally sure about that.",
+                "Yeah, that’s not really clear in the doc.",
+                "Hard to say, honestly.",
+                "Not sure on that one."
+            ])
+
+        st.markdown(f"**Student:** {Student_response}")
+        speak_text(Student_response, voice="Student")
+
+        last_Student_response = Student_response
+        chunk_index = (chunk_index + 1) % len(chunks)
+
+    outro_prompt = f"""
+    You're Teacher, the podcast host. End the podcast in one short sentence.
+    Thank Student and the audience, and casually mention the topic of the doc.
+    Make it smooth, brief, and natural — max 20 words.
+
+    Document context:
+    {context[:2000]}
+    """
+    outro = chat_Teacher.invoke([HumanMessage(content=outro_prompt)]).content.strip()
+
+    st.markdown(f"**Teacher:** {outro}")
+    speak_text(outro, voice="Teacher")
+
+    # Mark podcast as ended and trigger cooldown with adjusted time
+    podcast_duration = time.time() - start_time
+    cooldown_remaining = max(300 - podcast_duration, 0)  # 300 seconds = 5 minutes
+
+    # Adjust last_upload_time so the remaining cooldown is honored  
+    st.session_state["podcast_started"] = False
+    st.session_state["last_upload_time"] = datetime.now() - timedelta(seconds=(300 - cooldown_remaining))
+    release_lock()
+    st.rerun()
+
+if st.session_state["podcast_started"]:
+    st.write("---")
+    start_ai_podcast()
