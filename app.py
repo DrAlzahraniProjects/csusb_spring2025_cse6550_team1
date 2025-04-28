@@ -1,9 +1,5 @@
-import threading
-import speech_recognition as sr
 import streamlit as st
 import os
-import pandas as pd
-import numpy as np
 from langchain.chat_models import init_chat_model
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -412,28 +408,37 @@ def start_ai_podcast():
             """.strip()
         else:
             Teacher_prompt = f"""
-            You're Teacher, podcast host. You've already introduced yourself.
-            Dive into a specific, clear point from the doc and ask something about it.
-            Skip greetings, be natural and relaxed like you're already deep in the convo.
+            You are Teacher. You are already live on the podcast. 
+            Immediately ask a direct, specific question based on the document below. 
+            Do NOT say you are starting. 
+            Keep it short, casual, and stay on topic.
 
             Document:
             {context}
-            """
+            """.strip()
 
         Teacher_question = chat_Teacher.invoke([HumanMessage(content=Teacher_prompt)]).content.strip()
         st.markdown(f"**Teacher:** {Teacher_question}")
         speak_text(Teacher_question, voice="Teacher")
 
+        student_context_chunks = retrieve_chunks(Teacher_question, good_chunks)
+        student_context = "\n\n".join(student_context_chunks)
+
+
         Student_prompt = f"""
-        You're Student, the podcast co-host. Answer Teacher's question based ONLY on the doc below.
-        Keep it short, conversational. If unsure, say something casual like 'Not sure on that one.'
+        You are Student. Answer ONLY based on the document below.
+        Do NOT say phrases like 'according to the document' or 'the paper says'.
+        Just answer naturally, like you know the material.
+        If the answer is unclear, say 'The document doesn't clearly say.'
+        Prefer quoting the document where possible. No guessing allowed.
 
         Document:
-        {context}
+        {student_context}
 
         Teacher asked:
         {Teacher_question}
-        """
+        """.strip()
+
 
         Student_response = chat_Student.invoke([SystemMessage(content=Student_prompt)]).content.strip()
 
@@ -449,7 +454,8 @@ def start_ai_podcast():
         speak_text(Student_response, voice="Student")
 
         last_Student_response = Student_response
-        chunk_index = (chunk_index + 1) % len(chunks)
+
+        chunk_index = min(chunk_index + 1, len(doc_chunks) - 1)
 
     outro_prompt = f"""
     You're Teacher, the podcast host. End the podcast in one short sentence.
