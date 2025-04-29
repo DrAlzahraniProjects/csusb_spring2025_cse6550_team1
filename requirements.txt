@@ -10,4 +10,5 @@ numpy
 requests
 edge-tts
 mutagen
+scikit-learn
 
