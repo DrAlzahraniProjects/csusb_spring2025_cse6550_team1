@@ -2,6 +2,8 @@ import streamlit as st
 import os
 from langchain.chat_models import init_chat_model
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 import PyPDF2
 import time
 import random
@@ -18,10 +20,14 @@ try:
 except ImportError:
     mutagen_available = False
 
+CHUNK_SIZE = 1000  # characters
+TOP_K = 3  # number of top matching chunks to pull
 uploaded_file = None  # initialize early
 extracted_text = ""
 
 cooldown_active = False
+test_mode = False
+
 
 LOCK_FILE = "/tmp/streamlit_app.lock"
 PODCAST_LOCK_TIMEOUT = 180  # 3 minutes
@@ -65,6 +71,17 @@ def update_upload_timestamp(ip):
     ip_file = os.path.join(UPLOAD_TRACKER_DIR, ip.replace(".", "_") + ".txt")
     with open(ip_file, "w") as f:
         f.write(str(time.time()))
+
+def chunk_text(text, chunk_size=1000):
+    return [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+
+def retrieve_chunks(question, chunks, top_k=3):
+    vectorizer = TfidfVectorizer().fit(chunks + [question])
+    chunk_vectors = vectorizer.transform(chunks)
+    question_vector = vectorizer.transform([question])
+    sims = cosine_similarity(question_vector, chunk_vectors).flatten()
+    top_indices = sims.argsort()[-top_k:][::-1]
+    return [chunks[i] for i in top_indices]
 
 def speak_text(text, voice="Teacher"):
     voice_map = {
@@ -155,9 +172,22 @@ with col2:
 
 
 apik = os.environ["GROQ_API_KEY"]
+
 if not apik:
     st.error("Error: Please set your GROQ_API_Key variable.")
     st.stop()
+
+if "test_mode" not in st.session_state:
+    test_mode = False
+    if apik.endswith("_TEST"):
+        test_mode = True
+        os.environ["GROQ_API_KEY"] = apik[:-5]  # update env var to the clean key
+    st.session_state["test_mode"] = test_mode
+else:
+    test_mode = st.session_state["test_mode"]
+
+if "test_mode" not in st.session_state:
+    st.info("🚀 Test Mode Active - No IP checks, manual Student questions enabled.")
 
 chat_Teacher = init_chat_model("llama3-8b-8192", model_provider="groq")
 chat_Student = init_chat_model("llama3-70b-8192", model_provider="groq")
@@ -172,21 +202,24 @@ if "show_test_warning" not in st.session_state:
     st.session_state["show_test_warning"] = False
 
 user_ip = get_user_ip_ad()
-if not is_csusb(user_ip):
-    st.warning("Access denied")
-    st.stop()
+if not test_mode:
+    user_ip = get_user_ip_ad()
+    if not is_csusb(user_ip):
+        st.warning("Access denied")
+        st.stop()
 
-cooldown_remaining = is_upload_cooldown_active(user_ip)
-if cooldown_remaining > 0:
-    cooldown_active = True
-    countdown_placeholder = st.empty()
-    while cooldown_remaining > 0:
-        minutes, seconds = divmod(int(cooldown_remaining), 60)
-        countdown_placeholder.warning(f"\u23f3 Upload locked. Please wait {minutes:02d}:{seconds:02d} to upload a new document.")
-        time.sleep(1)
-        cooldown_remaining -= 1
-    countdown_placeholder.empty()
-    st.rerun()
+if not test_mode:
+    cooldown_remaining = is_upload_cooldown_active(user_ip)
+    if cooldown_remaining > 0:
+        cooldown_active = True
+        countdown_placeholder = st.empty()
+        while cooldown_remaining > 0:
+            minutes, seconds = divmod(int(cooldown_remaining), 60)
+            countdown_placeholder.warning(f"\u23f3 Upload locked. Please wait {minutes:02d}:{seconds:02d} to upload a new document.")
+            time.sleep(1)
+            cooldown_remaining -= 1
+        countdown_placeholder.empty()
+        st.rerun()
 
 if is_locked():
     placeholder = st.empty()
@@ -239,6 +272,8 @@ if potential_file:
             for i, page in enumerate(pdf_reader.pages):
                 text = page.extract_text() or ""
                 extracted_text += text
+                doc_chunks = chunk_text(extracted_text)
+
                 progress.progress(int(((i + 1) / num_pages) * 100), text=f"Extracting page {i + 1} of {num_pages}...")
 
             progress.empty()
@@ -247,6 +282,50 @@ if potential_file:
             st.error(f"❌ Extraction failed: {e}")
 
 start_clicked = st.button(":material/voice_chat: Start AI Podcast", key="start_podcast_button_1")
+
+if test_mode:
+    st.markdown("---")
+    st.header("👨‍🏫 Test Mode Active: Ask the Student")
+
+    if uploaded_file:
+        if "test_session" not in st.session_state:
+            st.session_state["test_session"] = []
+
+        user_question = st.text_input("Enter your question for Student:")
+
+        if st.button("Ask Student"):
+            relevant_chunks = retrieve_chunks(user_question, doc_chunks)
+            context = "\n\n".join(relevant_chunks)
+
+            chat_Student = init_chat_model("llama3-70b-8192", model_provider="groq")
+
+            student_prompt = f"""
+            You are Student. Answer ONLY based on the document below.
+            If the answer is unclear, say 'The document doesn't clearly say.'
+            Prefer quoting the document where possible. No guessing allowed.
+
+            Document:
+            {context}
+
+            Teacher asked:
+            {user_question}
+            """.strip()
+
+            student_answer = chat_Student.invoke([SystemMessage(content=student_prompt)]).content.strip()
+
+            if student_answer.lower() in ["i don't know", "i do not know", "i'm not sure"]:
+                student_answer = random.choice([
+                    "Hmm, not really sure.",
+                    "Yeah, that’s kinda unclear.",
+                    "Not sure on that one."
+                ])
+
+            st.session_state["test_session"].append((user_question, student_answer))
+
+    if "test_session" in st.session_state:
+        for q, a in st.session_state["test_session"]:
+            st.markdown(f"**Teacher asked:** {q}")
+            st.markdown(f"**Student answered:** {a}")
 
 if start_clicked:
     st.session_state["show_test_warning"] = False
@@ -279,89 +358,87 @@ def start_ai_podcast():
 
     try:
         reader = PyPDF2.PdfReader(uploaded_file)
-        chunks = [page.extract_text() or "" for page in reader.pages if page.extract_text()]
+        extracted_text = ""
+        for page in reader.pages:
+            extracted_text += page.extract_text() or ""
+        doc_chunks = chunk_text(extracted_text)
     except Exception as e:
         st.warning("🛑 PDF is no longer available or readable. Ending podcast.")
         st.session_state["podcast_started"] = False
         return
 
-    if not chunks:
+    if not doc_chunks:
         st.warning("No readable content found in the uploaded PDF.")
         return
+    
+    intro_context = extracted_text[:500]
 
-    chunk_index = 0
-    context = extracted_text[:4000]
-
-    intro_prompt = f"""
-    You're Teacher, kicking off a casual podcast with your co-host Student.
-    Say hi, drop your name, and mention you're diving into a doc together.
-    Keep it under 2 sentences. Make it relaxed, friendly, not robotic.
-
-    Document:
-    {context}
-    """
+    intro_prompt = f= f"""
+            You're Teacher, opening a short 3-minute podcast. Greet Student quickly and dive into the topic.
+            Mention that today's topic is based on an interesting paper.
+            Keep it friendly and relaxed, no more than two sentences.
+            Document:
+            {intro_context}
+            """.strip()
+    
     intro = chat_Teacher.invoke([HumanMessage(content=intro_prompt)]).content.strip()
     st.markdown(f"**Teacher:** {intro}")
     speak_text(intro, voice="Teacher")
+
+    chunk_index = 1
+
+    good_chunks = [chunk for chunk in doc_chunks if len(chunk) > 400]
+    context = good_chunks[chunk_index]
 
     st.markdown("---")
     last_Student_response = None
 
     while time.time() - start_time < max_duration:
-        context = chunks[chunk_index][:4000]
+        if last_Student_response:
+            context = good_chunks[chunk_index]
 
-        if last_Student_response and any(p in last_Student_response.lower() for p in ["not sure", "don’t know", "don’t really see", "hard to say"]):
-            # Acknowledge Beta, then pivot
-            chunk_index = (chunk_index + 1) % len(chunks)
-            context = chunks[chunk_index][:4000]
             Teacher_prompt = f"""
-            You're Teacher. Student wasn't too sure last time, so you're shifting gears.
-            Start by casually acknowledging Student's uncertainty, then ask something clearly answerable from the doc.
-            Make it conversational and human. Two short sentences max.
-
+            You're Teacher. Acknowledge Student's last answer briefly, then immediately pivot to a new topic from the document.
+            Ask a direct and specific question based on the document content below.
+            Keep it very short and casual. No long commentary
+            Student said:
+            {last_Student_response}
             Document:
             {context}
-
-            Student just said:
-            {last_Student_response}
-            """
-        elif last_Student_response:
-            tone = random.choice(["curious", "amused", "sarcastic", "chill", "deep thinker"])
-            Teacher_prompt = f"""
-            You're Teacher, a podcast host with a {tone} vibe.
-            Respond naturally to what Student said, then ask a direct, specific follow-up from the doc.
-            Avoid generic phrasing or stating you're asking a question. Just talk like a human. Keep it snappy.
-
-            Document:
-            {context}
-
-            Student just said:
-            {last_Student_response}
-            """
+            """.strip()
         else:
             Teacher_prompt = f"""
-            You're Teacher, podcast host. You've already introduced yourself.
-            Dive into a specific, clear point from the doc and ask something about it.
-            Skip greetings, be natural and relaxed like you're already deep in the convo.
+            You are Teacher. You are already live on the podcast. 
+            Immediately ask a direct, specific question based on the document below. 
+            Do NOT say you are starting. 
+            Keep it short, casual, and stay on topic.
 
             Document:
             {context}
-            """
+            """.strip()
 
         Teacher_question = chat_Teacher.invoke([HumanMessage(content=Teacher_prompt)]).content.strip()
         st.markdown(f"**Teacher:** {Teacher_question}")
         speak_text(Teacher_question, voice="Teacher")
 
+        student_context_chunks = retrieve_chunks(Teacher_question, good_chunks)
+        student_context = "\n\n".join(student_context_chunks)
+
+
         Student_prompt = f"""
-        You're Student, the podcast co-host. Answer Teacher's question based ONLY on the doc below.
-        Keep it short, conversational. If unsure, say something casual like 'Not sure on that one.'
+        You are Student. Answer ONLY based on the document below.
+        Do NOT say phrases like 'according to the document' or 'the paper says'.
+        Just answer naturally, like you know the material.
+        If the answer is unclear, say 'The document doesn't clearly say.'
+        Prefer quoting the document where possible. No guessing allowed.
 
         Document:
-        {context}
+        {student_context}
 
         Teacher asked:
         {Teacher_question}
-        """
+        """.strip()
+
 
         Student_response = chat_Student.invoke([SystemMessage(content=Student_prompt)]).content.strip()
 
@@ -377,7 +454,8 @@ def start_ai_podcast():
         speak_text(Student_response, voice="Student")
 
         last_Student_response = Student_response
-        chunk_index = (chunk_index + 1) % len(chunks)
+
+        chunk_index = min(chunk_index + 1, len(doc_chunks) - 1)
 
     outro_prompt = f"""
     You're Teacher, the podcast host. End the podcast in one short sentence.
