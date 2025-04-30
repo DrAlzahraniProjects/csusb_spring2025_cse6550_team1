@@ -125,11 +125,12 @@ def get_user_ip_ad():
     except Exception:
         return ""
 
-def is_csusb(ip):
-    return any([
-        ip.startswith("138.23."),
-        ip.startswith("139.182.")
-    ])
+def is_US(ip: str) -> bool:
+    try:
+        response = requests.get(f"http://ip-api.com/json/{ip}?fields=country", timeout=None)
+        return response.json().get("country", "").lower() == "united states"
+    except Exception:
+        return False
 
 st.set_page_config(
     page_title="CSUSB Study Podcast",
@@ -204,7 +205,7 @@ if "show_test_warning" not in st.session_state:
 user_ip = get_user_ip_ad()
 if not test_mode:
     user_ip = get_user_ip_ad()
-    if not is_csusb(user_ip):
+    if not is_US(user_ip):
         st.warning("Access denied")
         st.stop()
 
@@ -236,7 +237,7 @@ if is_locked():
         st.warning("Still busy. Try refreshing manually.")
     st.stop()
 
-st.success("Welcome, CSUSB User!")
+st.success("Welcome, User!")
 
 current_time = datetime.now()
 if (
