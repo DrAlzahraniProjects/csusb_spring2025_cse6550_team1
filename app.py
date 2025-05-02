@@ -176,6 +176,7 @@ with col2:
                 <p style='font-size: 14px; margin: 2px 0 0 0; color: gray;'>
                     Study Podcast Assistant that converts PDF documents into engaging AI conversations
                 </p>
+                </br>
             </div>
         """, unsafe_allow_html=True)
 
@@ -245,7 +246,11 @@ if is_locked():
         st.warning("Still busy. Try refreshing manually.")
     st.stop()
 
-st.success("Welcome, User!")
+if "welcome_time" not in st.session_state:
+    st.session_state["welcome_time"] = time.time()
+
+if time.time() - st.session_state["welcome_time"] < 5:
+    st.success("Welcome, User!")
 
 current_time = datetime.now()
 if (
@@ -346,8 +351,11 @@ if start_clicked:
         st.session_state["last_upload_time"] = datetime.now()
         st.session_state["show_podcast_warning"] = False
 
-if st.session_state["show_podcast_warning"]:
-    st.warning("🚨 Please upload a PDF before starting the podcast.")
+if st.session_state.get("show_podcast_warning", False):
+    if uploaded_file:
+        st.session_state["show_podcast_warning"] = False
+    else:
+        st.warning("🚨 Please upload a PDF before starting the podcast.")
 
 if cooldown_active:
     uploaded_file = None
