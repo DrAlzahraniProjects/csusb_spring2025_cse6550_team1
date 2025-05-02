@@ -24,6 +24,7 @@ CHUNK_SIZE = 1000  # characters
 TOP_K = 3  # number of top matching chunks to pull
 uploaded_file = None  # initialize early
 extracted_text = ""
+sample_pdf_path = "./pdf/CSUSB_FUN_FACTS.pdf"
 
 cooldown_active = False
 test_mode = False
@@ -159,9 +160,18 @@ div[data-testid="stFileUploader"] div[aria-live="polite"] {
 }
 .stTextInput > div > div > input {
     padding-bottom: 0 !important;
-}
+}          
 </style>
 """, unsafe_allow_html=True)
+
+user_ip = get_user_ip_ad()
+if not test_mode:
+    user_ip = get_user_ip_ad()
+    if not is_US(user_ip):
+        st.warning("Access denied")
+        st.stop()
+    else:
+        st.markdown("<p style='color: gray; font-size: 0.9em; text-align: right'>Connected</p>", unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns([1, 3, 1])
 
@@ -210,13 +220,13 @@ if "show_podcast_warning" not in st.session_state:
     st.session_state["show_podcast_warning"] = False
 if "show_test_warning" not in st.session_state:
     st.session_state["show_test_warning"] = False
+if "uploaded_file_ready" not in st.session_state:
+    st.session_state["uploaded_file_ready"] = False
+if "use_sample_pdf" not in st.session_state:
+        st.session_state.use_sample_pdf = False
+if "show_sample_preview" not in st.session_state:
+        st.session_state.show_sample_preview = False
 
-user_ip = get_user_ip_ad()
-if not test_mode:
-    user_ip = get_user_ip_ad()
-    if not is_US(user_ip):
-        st.warning("Access denied")
-        st.stop()
 
 if not test_mode:
     cooldown_remaining = is_upload_cooldown_active(user_ip)
@@ -246,12 +256,6 @@ if is_locked():
         st.warning("Still busy. Try refreshing manually.")
     st.stop()
 
-if "welcome_time" not in st.session_state:
-    st.session_state["welcome_time"] = time.time()
-
-if time.time() - st.session_state["welcome_time"] < 5:
-    st.success("Welcome, User!")
-
 current_time = datetime.now()
 if (
     st.session_state["last_upload_time"] is not None and
@@ -268,9 +272,67 @@ if (
     countdown_placeholder.empty()
     st.rerun()
 else:
+    with open(sample_pdf_path, "rb") as f:
+        sample_bytes = f.read()
+        base64_pdf = base64.b64encode(sample_bytes).decode("utf-8")
+
+    if not st.session_state.get("use_sample_pdf", False) and not st.session_state.get("uploaded_file_ready", False):
+        with st.expander(":material/description: Need a sample PDF?"):
+
+            st.markdown("<p style='color: gray; font-size: 0.9em;'>Try out the podcast generator with this sample document about CSUSB.</p>", unsafe_allow_html=True)
+
+            # Layout: buttons side-by-side
+            col1, col2, col3 = st.columns([1, 1, 1])
+
+            with col1:
+                st.download_button(
+                    label=":material/download: Download Sample PDF",
+                    data=sample_bytes,
+                    file_name="CSUSB_FUN_FACTS.pdf",
+                    mime="application/pdf",
+                    help="Try out the podcast generator with this sample document about CSUSB.",
+                    use_container_width=True
+                )
+
+            with col2:
+                if st.button(":material/visibility: Preview Sample", use_container_width=True):
+                    st.session_state.show_sample_preview = not st.session_state.show_sample_preview
+
+            with col3:
+                if st.button(":material/auto_awesome: Use Sample PDF"):
+                    st.session_state.use_sample_pdf = True
+                    st.session_state.podcast_started = True
+                    st.session_state.sample_pdf_bytes = sample_bytes
+                    st.session_state["show_podcast_warning"] = False
+                    st.session_state["show_sample_preview"] = False
+                    st.rerun()
+
+        # PDF preview iframe
+        if st.session_state.show_sample_preview:
+            st.markdown(
+                f"""
+                <iframe src="data:application/pdf;base64,{base64_pdf}"
+                        width="100%" height="600px"
+                        style="border: 1px solid #ccc; border-radius: 6px;">
+                </iframe>
+                """,
+                unsafe_allow_html=True
+            )
+
     potential_file = st.file_uploader("Upload a PDF document (Max: 10MB)", type=["pdf"])
 
-if potential_file:
+if st.session_state.get("use_sample_pdf", False):
+    uploaded_file = sample_pdf_path
+    extracted_text = ""
+    pdf_reader = PyPDF2.PdfReader(uploaded_file)
+    num_pages = len(pdf_reader.pages)
+    for i, page in enumerate(pdf_reader.pages):
+        extracted_text += page.extract_text() or ""
+        doc_chunks = chunk_text(extracted_text)
+    st.success("✅ Sample PDF loaded successfully!")
+    st.session_state.use_sample_pdf = False  # Reset for next time
+
+elif potential_file:
     if potential_file.size > 10 * 1024 * 1024:
         st.error("❌ File size exceeds the 10MB limit. Please upload a smaller PDF.")
     else:
@@ -292,6 +354,7 @@ if potential_file:
 
             progress.empty()
             st.success(f"✅ PDF extracted successfully with {num_pages} page(s)!")
+            st.session_state["uploaded_file_ready"] = True
         except Exception as e:
             st.error(f"❌ Extraction failed: {e}")
 
@@ -389,7 +452,7 @@ def start_ai_podcast():
     
     intro_context = extracted_text[:500]
 
-    intro_prompt = f= f"""
+    intro_prompt = f"""
             You're Teacher, opening a short 3-minute podcast. Greet Student quickly and dive into the topic.
             Mention that today's topic is based on an interesting paper.
             Keep it friendly and relaxed, no more than two sentences.

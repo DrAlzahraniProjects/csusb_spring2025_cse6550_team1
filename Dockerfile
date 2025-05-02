@@ -23,6 +23,7 @@ WORKDIR /app
 # Copy your Python code into the Docker container
 COPY app.py /app
 COPY logo /app/logo
+COPY pdf /app/pdf
 COPY .streamlit /app/.streamlit
 
 
