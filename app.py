@@ -105,10 +105,18 @@ def speak_text(text, voice="Teacher"):
                 </audio>
             """, unsafe_allow_html=True)
 
-            duration = get_mp3_duration(tmpfile.name, text)
-            time.sleep(duration)
+            return get_mp3_duration(tmpfile.name, text)
 
-    asyncio.run(run_tts())
+    return asyncio.run(run_tts())
+
+def typewriter_display(text, speaker, total_duration):
+    display_spot = st.empty()
+    typed_text = f"**{speaker}**: "
+    delay = (total_duration / max(len(text), 1)) * 0.9 # avoid division by zero
+    for char in text:
+        typed_text += char
+        display_spot.markdown(typed_text)
+        time.sleep(delay)
 
 def get_mp3_duration(file_path, text):
     if mutagen_available:
@@ -352,7 +360,6 @@ def start_ai_podcast():
         return
 
     st.markdown("## 🎙️ Welcome to the AI Podcast")
-    messages = []
     start_time = time.time()
     update_upload_timestamp(user_ip)
     max_duration = 180
@@ -383,8 +390,8 @@ def start_ai_podcast():
             """.strip()
     
     intro = chat_Teacher.invoke([HumanMessage(content=intro_prompt)]).content.strip()
-    st.markdown(f"**Teacher:** {intro}")
-    speak_text(intro, voice="Teacher")
+    duration = speak_text(intro, voice="Teacher")
+    typewriter_display(intro, speaker="Teacher", total_duration=duration)
 
     chunk_index = 1
 
@@ -419,8 +426,8 @@ def start_ai_podcast():
             """.strip()
 
         Teacher_question = chat_Teacher.invoke([HumanMessage(content=Teacher_prompt)]).content.strip()
-        st.markdown(f"**Teacher:** {Teacher_question}")
-        speak_text(Teacher_question, voice="Teacher")
+        duration = speak_text(Teacher_question, voice="Teacher")
+        typewriter_display(Teacher_question, speaker="Teacher", total_duration=duration)
 
         student_context_chunks = retrieve_chunks(Teacher_question, good_chunks)
         student_context = "\n\n".join(student_context_chunks)
@@ -451,8 +458,8 @@ def start_ai_podcast():
                 "Not sure on that one."
             ])
 
-        st.markdown(f"**Student:** {Student_response}")
-        speak_text(Student_response, voice="Student")
+        duration = speak_text(Student_response, voice="Student")
+        typewriter_display(Student_response, speaker="Student", total_duration=duration)
 
         last_Student_response = Student_response
 
@@ -468,8 +475,8 @@ def start_ai_podcast():
     """
     outro = chat_Teacher.invoke([HumanMessage(content=outro_prompt)]).content.strip()
 
-    st.markdown(f"**Teacher:** {outro}")
-    speak_text(outro, voice="Teacher")
+    duration = speak_text(outro, voice="Teacher")
+    typewriter_display(outro, speaker="Teacher", total_duration=duration)
 
     # Mark podcast as ended and trigger cooldown with adjusted time
     podcast_duration = time.time() - start_time
